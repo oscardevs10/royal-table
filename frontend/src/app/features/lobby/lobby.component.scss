@@ -1,0 +1,238 @@
+.lobby {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.lobby-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  padding: 2.25rem 2rem;
+  animation: fade-in-up 0.4s ease;
+}
+
+.leave-btn {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.leave-btn:hover {
+  color: var(--text-primary);
+}
+
+.room-code-block {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.room-code {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+  margin: 0.3rem 0 1rem;
+}
+
+.copy-btn {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+.players-section {
+  margin-bottom: 1.5rem;
+}
+
+.players-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+
+  .count {
+    color: var(--gold);
+  }
+}
+
+.players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  animation: fade-in 0.3s ease;
+}
+
+.player-row.disconnected {
+  opacity: 0.55;
+}
+
+.player-row.empty {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #1a1408;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.avatar.placeholder {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+}
+
+.avatar.bot-avatar {
+  background: linear-gradient(135deg, #5b9bd5, #2f6ea3);
+  font-size: 1rem;
+}
+
+.bot-tag {
+  font-size: 0.6rem;
+  background: rgba(91, 155, 213, 0.2);
+  color: #a8cff0;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.remove-bot-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(226, 85, 90, 0.12);
+  color: #ff9b9e;
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.remove-bot-btn:hover {
+  background: rgba(226, 85, 90, 0.25);
+}
+
+.add-bot-btn {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.solo-hint {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.player-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.host-tag {
+  font-size: 0.6rem;
+  background: rgba(212, 175, 106, 0.18);
+  color: var(--gold);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.player-status {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.config-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-md);
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+
+  strong {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+  }
+}
+
+.start-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.waiting-host {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  padding: 0.75rem;
+}

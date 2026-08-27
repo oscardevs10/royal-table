@@ -1,0 +1,59 @@
+@if (p(); as player) {
+  <div
+    class="seat"
+    [class.is-turn]="player.isCurrentTurn"
+    [class.is-me]="isMe"
+    [class.folded]="player.status === 'FOLDED'"
+    [class.out]="player.status === 'OUT'"
+  >
+    @if (holeCardsToShow().length > 0) {
+      <div class="hole-cards" [class.my-hole-cards]="isMe">
+        @for (card of holeCardsToShow(); track $index) {
+          <app-playing-card [card]="card" [faceDown]="!card" [size]="isMe ? 'md' : 'sm'" [dealDelayMs]="dealDelays[$index]" />
+        }
+      </div>
+    }
+
+    <div class="seat-body">
+      @if (actionBubbleLabel(); as label) {
+        <div class="action-bubble" [class]="actionBubbleClass()">{{ label }}</div>
+      }
+
+      <div class="avatar-wrap">
+        <div class="avatar" [class.bot-avatar]="player.isBot">
+          {{ player.isBot ? '🤖' : player.name.trim().slice(0, 2).toUpperCase() }}
+        </div>
+        @if (isDealer) {
+          <div class="badge dealer">D</div>
+        }
+        @if (isSmallBlind) {
+          <div class="badge sb">SB</div>
+        }
+        @if (isBigBlind) {
+          <div class="badge bb">BB</div>
+        }
+        @if (!player.connected) {
+          <div class="disconnected-icon" title="Desconectado">⚠</div>
+        }
+      </div>
+
+      <div class="info">
+        <span class="name">{{ player.name }}</span>
+        <span class="chips">{{ player.chips | number }}</span>
+      </div>
+
+      @if (statusLabel()) {
+        <div class="status-pill" [class.folded-pill]="player.status === 'FOLDED'" [class.allin-pill]="player.status === 'ALL_IN'">
+          {{ statusLabel() }}
+        </div>
+      }
+
+      @if (player.currentBet > 0 && player.status !== 'FOLDED') {
+        <div class="current-bet">
+          <span class="chip-icon"></span>
+          {{ player.currentBet | number }}
+        </div>
+      }
+    </div>
+  </div>
+}

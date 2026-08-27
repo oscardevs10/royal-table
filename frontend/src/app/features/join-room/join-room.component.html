@@ -1,0 +1,45 @@
+<div class="page">
+  <div class="form-card glass-panel">
+    <a routerLink="/" class="back-link">← Volver</a>
+    <h2 class="title">Unirse a partida</h2>
+    <p class="subtitle">Introduce el código que te compartió el anfitrión.</p>
+
+    <form (ngSubmit)="submit()" #form="ngForm">
+      <div class="field">
+        <label class="field-label" for="name">Nombre del jugador</label>
+        <input
+          id="name"
+          class="text-input"
+          type="text"
+          [(ngModel)]="playerName"
+          name="playerName"
+          maxlength="20"
+          placeholder="Tu nombre"
+          required
+        />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="code">Código de sala</label>
+        <input
+          id="code"
+          class="text-input code-input"
+          type="text"
+          [(ngModel)]="roomCode"
+          name="roomCode"
+          maxlength="6"
+          placeholder="X7K92"
+          required
+        />
+      </div>
+
+      @if (formError()) {
+        <div class="form-error">{{ formError() }}</div>
+      }
+
+      <button type="submit" class="btn btn-gold submit-btn" [disabled]="submitting() || !form.valid">
+        {{ submitting() ? 'Uniendo...' : 'Unirse' }}
+      </button>
+    </form>
+  </div>
+</div>

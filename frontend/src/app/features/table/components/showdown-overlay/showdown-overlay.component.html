@@ -1,0 +1,42 @@
+@if (result; as r) {
+  <div class="overlay">
+    <div class="overlay-content glass-panel">
+      @for (winner of r.winners; track winner.playerId) {
+        <div class="winner-block">
+          <div class="winner-crown">👑</div>
+          <h2 class="winner-name">{{ winner.playerName.toUpperCase() }} WINS</h2>
+          <div class="winner-hand">{{ winner.handDescription }}</div>
+          <div class="winner-amount">+{{ winner.amountWon | number }} chips</div>
+          @if (winner.bestCards.length > 0) {
+            <div class="winner-cards">
+              @for (card of winner.bestCards; track $index) {
+                <app-playing-card [card]="card" size="md" [dealDelayMs]="$index * 60" />
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (r.revealedHands.length > 1) {
+        <div class="revealed-hands">
+          @for (hand of r.revealedHands; track hand.playerId) {
+            <div class="revealed-row">
+              <div class="mini-cards">
+                @for (card of hand.holeCards; track $index) {
+                  <app-playing-card [card]="card" size="sm" />
+                }
+              </div>
+              <span class="revealed-desc">{{ hand.handDescription }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (isHost) {
+        <button class="btn btn-gold next-btn" (click)="nextHand.emit()">Next Hand</button>
+      } @else {
+        <div class="waiting-note">Esperando al anfitrión para la siguiente mano...</div>
+      }
+    </div>
+  </div>
+}

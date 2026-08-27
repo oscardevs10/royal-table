@@ -1,0 +1,288 @@
+import { Server, Socket } from 'socket.io';
+import { ClientToServerEvents, ServerToClientEvents } from '../types/socket-events.types';
+import { roomService } from '../modules/rooms/room.service';
+import { buildGameStateDTO, buildRoomStateDTO } from '../modules/rooms/dto-builder';
+import { Room } from '../modules/rooms/room.types';
+import { sanitizeChatText } from '../modules/chat/chat.service';
+import { persistenceService } from '../database/persistence.service';
+import { decideBotAction } from '../modules/poker/bot-ai';
+
+type AppServer = Server<ClientToServerEvents, ServerToClientEvents>;
+type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+
+const BOT_MIN_DELAY_MS = 700;
+const BOT_MAX_DELAY_MS = 1500;
+
+function roomChannel(code: string): string {
+  return `room:${code}`;
+}
+
+function broadcastRoomState(io: AppServer, room: Room): void {
+  io.to(roomChannel(room.code)).emit('room:update', buildRoomStateDTO(room));
+}
+
+function broadcastGameState(io: AppServer, room: Room): void {
+  if (!room.engine) return;
+  for (const player of room.players) {
+    if (!player.socketId) continue;
+    const dto = buildGameStateDTO(room, player.id);
+    if (dto) io.to(player.socketId).emit('game:state', dto);
+  }
+}
+
+async function handleHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> {
+  if (!room.engine) return;
+  const showdown = room.engine.consumeShowdownResult();
+  if (!showdown) return;
+
+  const state = room.engine.getState();
+  await persistenceService.endHand(
+    room.id,
+    state.communityCards.map((c) => `${c.rank}${c.suit[0]}`).join(','),
+    showdown.winners.reduce((sum, w) => sum + w.amountWon, 0),
+    showdown
+  );
+
+  io.to(roomChannel(room.code)).emit('game:showdown', showdown);
+  io.to(roomChannel(room.code)).emit('game:hand-ended', { reason: showdown.revealedHands.length > 0 ? 'showdown' : 'fold' });
+
+  for (const eliminated of room.engine.consumeEliminated()) {
+    await persistenceService.markPlayerEliminated(eliminated.id);
+    io.to(roomChannel(room.code)).emit('player:eliminated', { playerId: eliminated.id, name: eliminated.name });
+  }
+
+  if (room.engine.isGameOver()) {
+    room.status = 'FINISHED';
+    await persistenceService.updateRoomStatus(room.id, 'FINISHED');
+    await persistenceService.endGame(room.id);
+    broadcastRoomState(io, room);
+  }
+}
+
+/**
+ * Validates and applies one action (from a human socket or a bot) through the
+ * same server-authoritative path, persists it, broadcasts the result, and -
+ * if it's now a bot's turn - schedules that bot's move. Shared by the
+ * `game:action` handler and the bot turn scheduler so both go through
+ * identical validation/broadcast logic.
+ */
+async function processAction(
+  io: AppServer,
+  sessionToken: string,
+  type: string,
+  amount?: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const found = roomService.findBySession(sessionToken);
+  if (!found) return { ok: false, error: 'Player not found' };
+  const { room, player } = found;
+  const phaseBeforeAction = room.engine?.getState().currentPhase;
+
+  const result = roomService.applyAction(sessionToken, type, amount);
+  if (!result.ok || !result.data) return { ok: false, error: result.error ?? 'Invalid action' };
+
+  if (room.engine && phaseBeforeAction) {
+    await persistenceService.recordAction(room.id, player.id, type as any, amount ?? 0, phaseBeforeAction);
+  }
+
+  const enginePlayer = room.engine?.getState().players.find((p) => p.id === player.id);
+  io.to(roomChannel(room.code)).emit('game:player-action', {
+    playerId: player.id,
+    playerName: player.name,
+    type: type as any,
+    amount: enginePlayer?.currentBet,
+  });
+
+  broadcastGameState(io, room);
+  await handleHandOutcomeIfAny(io, room);
+  scheduleBotTurnIfNeeded(io, room);
+
+  return { ok: true };
+}
+
+/**
+ * If it's currently a bot's turn, computes its decision after a short human-like
+ * delay and applies it through the exact same validated path a real player uses.
+ * Re-checks the game state when the timer fires (hand/turn may have moved on)
+ * so a stale timer can never double-act or act out of turn.
+ */
+function scheduleBotTurnIfNeeded(io: AppServer, room: Room): void {
+  if (!room.engine) return;
+  const state = room.engine.getState();
+  if (!state.handInProgress) return;
+
+  const current = state.players.find((p) => p.seatIndex === state.currentPlayerPosition);
+  if (!current || !current.isBot) return;
+
+  const botId = current.id;
+  const handNumberAtSchedule = state.handNumber;
+  const delay = BOT_MIN_DELAY_MS + Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS);
+
+  setTimeout(async () => {
+    if (!room.engine) return;
+    const freshState = room.engine.getState();
+    if (!freshState.handInProgress || freshState.handNumber !== handNumberAtSchedule) return;
+
+    const freshBot = freshState.players.find((p) => p.id === botId);
+    const stillBotsTurn = freshState.players[freshState.currentPlayerPosition]?.id === botId;
+    if (!freshBot || !stillBotsTurn) return;
+
+    const decision = decideBotAction(freshState, freshBot);
+    const res = await processAction(io, freshBot.sessionToken, decision.type, decision.amount);
+    if (!res.ok) {
+      // Safety net: an unexpected validation mismatch should never stall the table.
+      await processAction(io, freshBot.sessionToken, 'FOLD');
+    }
+  }, delay);
+}
+
+export function registerSocketHandlers(io: AppServer): void {
+  io.on('connection', (socket: AppSocket) => {
+    socket.on('room:create', async (payload, callback) => {
+      try {
+        const result = await roomService.createRoom(payload.playerName, {
+          maxPlayers: Number(payload.maxPlayers),
+          startingStack: Number(payload.startingStack),
+          smallBlind: Number(payload.smallBlind),
+          bigBlind: Number(payload.bigBlind),
+        });
+
+        if (!result.ok || !result.data) {
+          callback({ ok: false, error: result.error ?? 'Could not create room' });
+          return;
+        }
+
+        const { room, player } = result.data;
+        player.socketId = socket.id;
+        socket.join(roomChannel(room.code));
+        callback({ ok: true, roomCode: room.code, sessionToken: player.sessionToken, playerId: player.id });
+        broadcastRoomState(io, room);
+      } catch (err) {
+        console.error('room:create failed', err);
+        callback({ ok: false, error: 'Unexpected server error' });
+      }
+    });
+
+    socket.on('room:join', async (payload, callback) => {
+      try {
+        const result = await roomService.joinRoom(payload.roomCode?.toUpperCase() ?? '', payload.playerName);
+        if (!result.ok || !result.data) {
+          callback({ ok: false, error: result.error ?? 'Could not join room' });
+          return;
+        }
+
+        const { room, player } = result.data;
+        player.socketId = socket.id;
+        socket.join(roomChannel(room.code));
+        callback({ ok: true, sessionToken: player.sessionToken, playerId: player.id });
+        broadcastRoomState(io, room);
+      } catch (err) {
+        console.error('room:join failed', err);
+        callback({ ok: false, error: 'Unexpected server error' });
+      }
+    });
+
+    socket.on('room:rejoin', (payload, callback) => {
+      const found = roomService.attachSocket(payload.sessionToken, socket.id);
+      if (!found) {
+        callback({ ok: false, error: 'Session not found' });
+        return;
+      }
+      const { room, player, wasDisconnected } = found;
+      socket.join(roomChannel(room.code));
+      callback({ ok: true });
+      broadcastRoomState(io, room);
+      if (room.status === 'PLAYING') {
+        broadcastGameState(io, room);
+      }
+      if (wasDisconnected) {
+        io.to(roomChannel(room.code)).emit('player:reconnected', { playerId: player.id, name: player.name });
+      }
+    });
+
+    socket.on('room:leave', (payload) => {
+      const found = roomService.leaveRoom(payload.sessionToken);
+      if (!found) return;
+      const { room, player } = found;
+      socket.leave(roomChannel(room.code));
+      if (room.players.length > 0) {
+        broadcastRoomState(io, room);
+        if (room.status === 'PLAYING') {
+          io.to(roomChannel(room.code)).emit('player:disconnected', { playerId: player.id, name: player.name });
+        }
+      }
+    });
+
+    socket.on('room:ready', (payload) => {
+      const result = roomService.setReady(payload.sessionToken, payload.ready);
+      if (result.ok && result.data) broadcastRoomState(io, result.data);
+    });
+
+    socket.on('room:add-bot', (payload, callback) => {
+      const result = roomService.addBot(payload.sessionToken);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Could not add bot' });
+        return;
+      }
+      callback({ ok: true });
+      broadcastRoomState(io, result.data);
+    });
+
+    socket.on('room:remove-bot', (payload, callback) => {
+      const result = roomService.removeBot(payload.sessionToken, payload.botPlayerId);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Could not remove bot' });
+        return;
+      }
+      callback({ ok: true });
+      broadcastRoomState(io, result.data);
+    });
+
+    socket.on('game:start', async (payload, callback) => {
+      const result = await roomService.startGame(payload.sessionToken);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Could not start game' });
+        return;
+      }
+      callback({ ok: true });
+      broadcastRoomState(io, result.data);
+      broadcastGameState(io, result.data);
+      scheduleBotTurnIfNeeded(io, result.data);
+    });
+
+    socket.on('game:action', async (payload, callback) => {
+      const res = await processAction(io, payload.sessionToken, payload.type, payload.amount);
+      callback(res);
+    });
+
+    socket.on('game:next-hand', async (payload) => {
+      const result = await roomService.nextHand(payload.sessionToken);
+      if (!result.ok || !result.data) return;
+      broadcastGameState(io, result.data);
+      scheduleBotTurnIfNeeded(io, result.data);
+    });
+
+    socket.on('chat:message', (payload) => {
+      const found = roomService.findBySession(payload.sessionToken);
+      if (!found) return;
+      const text = sanitizeChatText(payload.text);
+      if (!text) return;
+
+      io.to(roomChannel(found.room.code)).emit('chat:message', {
+        playerId: found.player.id,
+        playerName: found.player.name,
+        text,
+        timestamp: Date.now(),
+      });
+    });
+
+    socket.on('disconnect', () => {
+      const found = roomService.markDisconnected(socket.id);
+      if (!found) return;
+      const { room, player } = found;
+      broadcastRoomState(io, room);
+      if (room.status === 'PLAYING') {
+        io.to(roomChannel(room.code)).emit('player:disconnected', { playerId: player.id, name: player.name });
+      }
+    });
+  });
+}

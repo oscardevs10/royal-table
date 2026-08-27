@@ -1,0 +1,33 @@
+<div class="chat-panel" [class.open]="open">
+  <div class="chat-header">
+    <span>CHAT</span>
+    <button class="close-btn" (click)="closePanel.emit()">×</button>
+  </div>
+
+  <div class="chat-messages">
+    @if (messages.length === 0) {
+      <div class="empty-chat">Aún no hay mensajes. ¡Saluda!</div>
+    }
+    @for (msg of messages; track $index) {
+      <div class="chat-message" [class.own]="msg.playerId === myPlayerId">
+        <div class="msg-header">
+          <span class="msg-author">{{ msg.playerName }}</span>
+          <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
+        </div>
+        <div class="msg-bubble">{{ msg.text }}</div>
+      </div>
+    }
+  </div>
+
+  <div class="chat-input-row">
+    <input
+      class="chat-input"
+      type="text"
+      placeholder="Escribe un mensaje..."
+      [(ngModel)]="draft"
+      maxlength="200"
+      (keyup.enter)="send()"
+    />
+    <button class="send-btn" (click)="send()">➤</button>
+  </div>
+</div>

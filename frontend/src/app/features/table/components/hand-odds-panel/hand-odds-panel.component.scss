@@ -1,0 +1,120 @@
+.hand-odds-panel {
+  position: relative;
+  width: min(360px, 92vw);
+  margin: 0 auto;
+}
+
+.current-hand-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  background: rgba(10, 14, 12, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(6px);
+  color: var(--text-primary);
+  animation: fade-in-up 0.25s ease;
+}
+
+.current-hand-row .label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.current-hand-row .value {
+  flex: 1;
+  text-align: left;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--gold-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toggle-icon {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+/* Floats above the collapsed bar instead of pushing the betting controls down. */
+.odds-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, 92vw);
+  max-height: 42dvh;
+  overflow-y: auto;
+  background: rgba(8, 11, 10, 0.97);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-deep);
+  z-index: 250;
+  animation: fade-in-up 0.2s ease;
+}
+
+.odds-list {
+  padding: 0.6rem 0.9rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.odds-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 38px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.odds-cat {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odds-bar-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.odds-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+  transition: width 0.3s ease;
+}
+
+.odds-pct {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+  text-align: right;
+}
+
+.odds-note {
+  padding: 0 0.9rem 0.5rem;
+  font-size: 0.63rem;
+  color: var(--text-dim);
+  text-align: right;
+  font-style: italic;
+}
+
+@media (max-width: 480px) {
+  .odds-row {
+    grid-template-columns: 74px 1fr 34px;
+  }
+  .odds-cat {
+    font-size: 0.64rem;
+  }
+}

@@ -1,0 +1,19 @@
+<div
+  class="card"
+  [class]="size"
+  [class.face-down]="faceDown || !displayCard()"
+  [class.red]="isRed()"
+  [style.animation-delay.ms]="dealDelayMs"
+>
+  @if (!faceDown && displayCard(); as c) {
+    <div class="card-face">
+      <span class="corner top">{{ c.rank }}{{ suitSymbol() }}</span>
+      <span class="center-suit">{{ suitSymbol() }}</span>
+      <span class="corner bottom">{{ c.rank }}{{ suitSymbol() }}</span>
+    </div>
+  } @else {
+    <div class="card-back">
+      <div class="card-back-pattern"></div>
+    </div>
+  }
+</div>

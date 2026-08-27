@@ -1,0 +1,9 @@
+<div class="community-cards">
+  @for (i of placeholders; track i) {
+    @if (cards[i]; as card) {
+      <app-playing-card [card]="card" size="lg" [dealDelayMs]="i * 80" />
+    } @else {
+      <div class="empty-slot"></div>
+    }
+  }
+</div>

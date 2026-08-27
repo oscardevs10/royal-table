@@ -1,0 +1,80 @@
+@if (store.roomState(); as room) {
+  <div class="lobby">
+    <div class="lobby-card glass-panel">
+      <button class="leave-btn" (click)="leave()" title="Salir">←</button>
+
+      <div class="room-code-block">
+        <span class="field-label">Código de sala</span>
+        <div class="room-code">{{ room.code }}</div>
+        <button class="btn btn-ghost copy-btn" (click)="copyInvite()">
+          {{ copied() ? '¡Copiado!' : 'Copiar invitación' }}
+        </button>
+      </div>
+
+      <div class="players-section">
+        <div class="players-header">
+          <span>Jugadores</span>
+          <span class="count">{{ room.players.length }} / {{ room.maxPlayers }}</span>
+        </div>
+
+        <div class="players-list">
+          @for (player of room.players; track player.id) {
+            <div class="player-row" [class.disconnected]="!player.connected && !player.isBot">
+              <div class="avatar" [class.bot-avatar]="player.isBot">{{ player.isBot ? '🤖' : initials(player.name) }}</div>
+              <div class="player-info">
+                <span class="player-name">
+                  {{ player.name }}
+                  @if (player.isHost) {
+                    <span class="host-tag">HOST</span>
+                  }
+                  @if (player.isBot) {
+                    <span class="bot-tag">BOT</span>
+                  }
+                </span>
+                <span class="player-status">
+                  {{ player.isBot ? 'Listo' : player.connected ? 'Listo' : 'Desconectado' }}
+                </span>
+              </div>
+              @if (store.isHost() && player.isBot) {
+                <button class="remove-bot-btn" (click)="removeBot(player.id)" title="Quitar bot">×</button>
+              } @else {
+                <div class="status-dot" [class.online]="player.connected"></div>
+              }
+            </div>
+          }
+
+          @for (empty of emptySeats(room.players.length, room.maxPlayers); track $index) {
+            <div class="player-row empty">
+              <div class="avatar placeholder">?</div>
+              <span class="player-status">Esperando jugador...</span>
+            </div>
+          }
+        </div>
+
+        @if (store.isHost() && room.players.length < room.maxPlayers) {
+          <button class="btn btn-ghost add-bot-btn" [disabled]="addingBot()" (click)="addBot()">
+            {{ addingBot() ? 'Agregando...' : '+ Agregar Bot' }}
+          </button>
+        }
+      </div>
+
+      @if (store.isHost() && room.players.length === 1) {
+        <p class="solo-hint">¿Jugando solo? Agrega al menos un bot para poder comenzar.</p>
+      }
+
+      <div class="config-summary">
+        <div class="config-item"><span>Stack inicial</span><strong>{{ room.startingStack | number }}</strong></div>
+        <div class="config-item"><span>Small Blind</span><strong>{{ room.smallBlind | number }}</strong></div>
+        <div class="config-item"><span>Big Blind</span><strong>{{ room.bigBlind | number }}</strong></div>
+      </div>
+
+      @if (store.isHost()) {
+        <button class="btn btn-gold start-btn" [disabled]="room.players.length < 2 || starting()" (click)="startGame()">
+          {{ starting() ? 'Iniciando...' : room.players.length < 2 ? 'Esperando jugadores...' : 'Comenzar partida' }}
+        </button>
+      } @else {
+        <div class="waiting-host">Esperando a que el anfitrión inicie la partida...</div>
+      }
+    </div>
+  </div>
+}

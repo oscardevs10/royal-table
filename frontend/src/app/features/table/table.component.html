@@ -1,0 +1,70 @@
+@if (store.gameState(); as state) {
+  <div class="table-page">
+    <header class="table-header">
+      <div class="room-info">
+        <span class="room-code-tag">{{ state.roomCode }}</span>
+        <span class="phase-tag">{{ phaseLabel() }}</span>
+        <span class="hand-tag">Mano #{{ state.handNumber }}</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" (click)="audio.toggleMute()" [title]="audio.muted() ? 'Activar sonido' : 'Silenciar'">
+          {{ audio.muted() ? '🔇' : '🔊' }}
+        </button>
+        <button class="icon-btn" (click)="chatOpen.set(!chatOpen())" title="Chat">💬</button>
+        <button class="icon-btn exit" (click)="exitTable()" title="Salir">✕</button>
+      </div>
+    </header>
+
+    <div class="table-arena">
+      <div class="oval-table">
+        <div class="felt-inner">
+          <div class="center-content">
+            <app-community-cards [cards]="state.communityCards" />
+            <app-pot-display [pot]="state.pot" [sidePots]="state.sidePots" />
+          </div>
+        </div>
+
+        @for (seat of seats(); track seat.player.id) {
+          <div class="seat-anchor" [style.left]="seat.style['left']" [style.top]="seat.style['top']">
+            <app-player-seat
+              [player]="seat.player"
+              [isDealer]="seat.isDealer"
+              [isSmallBlind]="seat.isSmallBlind"
+              [isBigBlind]="seat.isBigBlind"
+              [isMe]="seat.isMe"
+              [myHoleCards]="seat.isMe ? state.myHoleCards : []"
+              [dealDelays]="seat.dealDelays"
+              [actionBubble]="seat.actionBubble"
+            />
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (state.myCurrentHand) {
+      <app-hand-odds-panel [currentHand]="state.myCurrentHand" [odds]="state.myHandOdds" [isExact]="state.myHandOddsExact" />
+    }
+
+    @if (isMyTurn()) {
+      <app-betting-controls
+        [availableActions]="state.myAvailableActions"
+        [currentBet]="state.currentBet"
+        [bigBlind]="state.bigBlind"
+        [callAmount]="state.myCallAmount"
+        (action)="handleAction($event)"
+      />
+    } @else if (state.handInProgress) {
+      <div class="waiting-turn">Turno de {{ currentTurnPlayerName() }}</div>
+    }
+
+    <app-chat-panel
+      [messages]="store.chatMessages()"
+      [myPlayerId]="state.myPlayerId"
+      [open]="chatOpen()"
+      (closePanel)="chatOpen.set(false)"
+      (sendMessage)="sendChat($event)"
+    />
+
+    <app-showdown-overlay [result]="store.showdown()" [isHost]="store.isHost()" (nextHand)="nextHand()" />
+  </div>
+}

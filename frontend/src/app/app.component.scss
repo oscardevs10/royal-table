@@ -1,0 +1,58 @@
+.toast-stack {
+  position: fixed;
+  top: 4.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 500;
+  pointer-events: none;
+  max-width: min(90vw, 420px);
+}
+
+.toast {
+  background: rgba(20, 28, 25, 0.92);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+  animation: fade-in-up 0.25s ease;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.error-banner {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(226, 85, 90, 0.16);
+  border: 1px solid rgba(226, 85, 90, 0.45);
+  color: #ffd3d4;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 500;
+  cursor: pointer;
+  animation: fade-in-up 0.2s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  .dismiss {
+    background: transparent;
+    color: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+  }
+}

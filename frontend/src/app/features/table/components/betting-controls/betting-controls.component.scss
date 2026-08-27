@@ -1,0 +1,124 @@
+.betting-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(20, 28, 25, 0.6), rgba(10, 14, 12, 0.95));
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 0.9rem calc(0.5rem + env(safe-area-inset-bottom));
+  animation: fade-in-up 0.3s ease;
+}
+
+.turn-indicator {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+  text-transform: uppercase;
+}
+
+.raise-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.raise-readout {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--gold-bright);
+    font-size: 1rem;
+  }
+}
+
+.raise-slider {
+  width: 100%;
+  accent-color: var(--gold);
+  height: 4px;
+}
+
+.quick-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.quick-btn {
+  flex: 1;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.quick-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.action-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 0.65rem 0.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.96);
+}
+
+.action-btn.fold {
+  background: rgba(226, 85, 90, 0.14);
+  color: #ff9b9e;
+  border: 1px solid rgba(226, 85, 90, 0.35);
+}
+
+.action-btn.check {
+  background: rgba(91, 155, 213, 0.14);
+  color: #a8cff0;
+  border: 1px solid rgba(91, 155, 213, 0.35);
+}
+
+.action-btn.call {
+  background: rgba(79, 191, 122, 0.16);
+  color: #9be8b7;
+  border: 1px solid rgba(79, 191, 122, 0.4);
+}
+
+.action-btn.raise {
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #1a1408;
+}
+
+.action-btn.allin {
+  background: linear-gradient(135deg, #ff8a65, var(--danger));
+  color: #fff;
+}
+
+.action-btn:hover {
+  filter: brightness(1.1);
+}
+
+@media (max-width: 480px) {
+  .action-btn {
+    min-width: 70px;
+    padding: 0.75rem 0.4rem;
+    font-size: 0.75rem;
+  }
+}

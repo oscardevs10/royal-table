@@ -1,0 +1,32 @@
+<div class="landing">
+  <div class="ambient-glow"></div>
+  <div class="floating-suits" aria-hidden="true">
+    <span class="suit s1">♠</span>
+    <span class="suit s2">♥</span>
+    <span class="suit s3">♦</span>
+    <span class="suit s4">♣</span>
+    <span class="suit s5">♠</span>
+    <span class="suit s6">♥</span>
+  </div>
+
+  <div class="content">
+    <div class="badge">MULTIJUGADOR EN TIEMPO REAL</div>
+    <h1 class="logo">Royal Table</h1>
+    <p class="tagline">Texas Hold'em online. Crea una mesa, comparte el código y juega con tus amigos donde sea.</p>
+
+    <div class="cta-row">
+      <a routerLink="/create" class="btn btn-gold btn-lg">Crear partida</a>
+      <a routerLink="/join" class="btn btn-ghost btn-lg">Unirse a partida</a>
+    </div>
+
+    <div class="quick-join glass-panel">
+      <span class="field-label">¿Ya tienes un código?</span>
+      <div class="quick-join-row">
+        <input #codeInput type="text" class="text-input" placeholder="Ej. X7K92" maxlength="6" (keyup.enter)="goToJoin(codeInput)" />
+        <button class="btn btn-gold" (click)="goToJoin(codeInput)">Entrar</button>
+      </div>
+    </div>
+
+    <div class="disclaimer">Juego 100% recreativo. Fichas virtuales, sin dinero real.</div>
+  </div>
+</div>

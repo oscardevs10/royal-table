@@ -1,0 +1,53 @@
+.pot-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  animation: fade-in-up 0.3s ease;
+}
+
+.chip-stack {
+  display: flex;
+  margin-bottom: 0.15rem;
+}
+
+.chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  margin-left: -6px;
+}
+
+.chip:first-child {
+  margin-left: 0;
+}
+
+.c1 {
+  background: radial-gradient(circle, #e2555a, #a83338);
+}
+.c2 {
+  background: radial-gradient(circle, #5b9bd5, #2f6ea3);
+}
+.c3 {
+  background: radial-gradient(circle, var(--gold-bright), var(--gold-dim));
+}
+
+.pot-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+}
+
+.pot-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.side-pots-note {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}

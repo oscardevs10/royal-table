@@ -1,0 +1,107 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 5, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fade-in 0.25s ease;
+  padding: 1.5rem;
+}
+
+.overlay-content {
+  padding: 2rem 2.25rem;
+  max-width: 460px;
+  width: 100%;
+  text-align: center;
+  animation: fade-in-up 0.35s ease;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.winner-block {
+  margin-bottom: 1.25rem;
+}
+
+.winner-crown {
+  font-size: 2.2rem;
+  animation: bounce-in 0.5s ease;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.winner-name {
+  font-size: 1.6rem;
+  color: var(--gold-bright);
+  margin: 0.4rem 0 0.2rem;
+}
+
+.winner-hand {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.winner-amount {
+  color: var(--success);
+  font-weight: 800;
+  font-size: 1.3rem;
+  margin: 0.4rem 0 0.8rem;
+}
+
+.winner-cards {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.revealed-hands {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.revealed-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.mini-cards {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.revealed-desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.next-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.waiting-note {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}

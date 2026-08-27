@@ -1,0 +1,30 @@
+@if (currentHand) {
+  <div class="hand-odds-panel">
+    <button class="current-hand-row" (click)="toggle()">
+      <span class="label">Tu jugada</span>
+      <span class="value">{{ currentHand.description }}</span>
+      @if (odds && odds.length > 0) {
+        <span class="toggle-icon">{{ expanded() ? '▴' : '▾' }}</span>
+      }
+    </button>
+
+    @if (expanded() && odds && odds.length > 0) {
+      <div class="odds-dropdown">
+        <div class="odds-list">
+          @for (entry of odds; track entry.category) {
+            <div class="odds-row">
+              <span class="odds-cat">{{ categoryLabel(entry.category) }}</span>
+              <div class="odds-bar-track">
+                <div class="odds-bar-fill" [style.width.%]="entry.probability * 100"></div>
+              </div>
+              <span class="odds-pct">{{ entry.probability * 100 | number: '1.0-1' }}%</span>
+            </div>
+          }
+        </div>
+        @if (!isExact) {
+          <div class="odds-note">Estimado por simulación</div>
+        }
+      </div>
+    }
+  </div>
+}

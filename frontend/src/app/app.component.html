@@ -1,0 +1,14 @@
+<router-outlet />
+
+<div class="toast-stack">
+  @for (toast of store.toasts(); track toast.id) {
+    <div class="toast">{{ toast.text }}</div>
+  }
+</div>
+
+@if (store.errorMessage(); as error) {
+  <div class="error-banner" (click)="store.clearError()">
+    <span>{{ error }}</span>
+    <button class="dismiss">×</button>
+  </div>
+}

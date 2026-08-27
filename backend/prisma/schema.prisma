@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum GamePhase {
+  PRE_FLOP
+  FLOP
+  TURN
+  RIVER
+  SHOWDOWN
+}
+
+enum ActionType {
+  FOLD
+  CHECK
+  CALL
+  RAISE
+  ALL_IN
+  SMALL_BLIND
+  BIG_BLIND
+}
+
+model Room {
+  id           String     @id @default(uuid())
+  code         String     @unique
+  maxPlayers   Int
+  startingStack Int
+  smallBlind   Int
+  bigBlind     Int
+  status       RoomStatus @default(WAITING)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  players      Player[]
+  games        Game[]
+}
+
+model Player {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  name         String
+  isHost       Boolean  @default(false)
+  seatIndex    Int
+  chips        Int
+  connected    Boolean  @default(true)
+  eliminated   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId       String
+
+  actions      Action[]
+
+  @@index([roomId])
+}
+
+model Game {
+  id        String   @id @default(uuid())
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId    String
+
+  hands     Hand[]
+
+  @@index([roomId])
+}
+
+model Hand {
+  id            String   @id @default(uuid())
+  handNumber    Int
+  communityCards String  @default("")
+  potTotal      Int      @default(0)
+  winnerSummary String   @default("")
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId        String
+
+  actions       Action[]
+
+  @@index([gameId])
+}
+
+model Action {
+  id        String     @id @default(uuid())
+  type      ActionType
+  amount    Int        @default(0)
+  phase     GamePhase
+  createdAt DateTime   @default(now())
+
+  hand      Hand       @relation(fields: [handId], references: [id], onDelete: Cascade)
+  handId    String
+
+  player    Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId  String
+
+  @@index([handId])
+  @@index([playerId])
+}

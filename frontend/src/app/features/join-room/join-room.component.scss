@@ -1,0 +1,59 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem;
+  animation: fade-in-up 0.4s ease;
+}
+
+.back-link {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.title {
+  margin-top: 1rem;
+  font-size: 1.8rem;
+  color: var(--gold-bright);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.field {
+  margin-bottom: 1.1rem;
+}
+
+.code-input {
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.form-error {
+  color: #ff9b9e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  font-size: 1rem;
+}

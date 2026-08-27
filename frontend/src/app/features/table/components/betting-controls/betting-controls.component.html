@@ -1,0 +1,41 @@
+<div class="betting-controls">
+  <div class="turn-indicator">Tu turno</div>
+
+  @if (canRaise) {
+    <div class="raise-panel">
+      <div class="raise-readout">Raise to <strong>{{ raiseAmount() | number }}</strong></div>
+      <input
+        type="range"
+        class="raise-slider"
+        [min]="raiseMin"
+        [max]="raiseMax"
+        [value]="raiseAmount()"
+        (input)="onSliderChange($any($event.target).value)"
+      />
+      <div class="quick-buttons">
+        <button class="quick-btn" (click)="applyMultiplier(2)">2x</button>
+        <button class="quick-btn" (click)="applyMultiplier(2.5)">2.5x</button>
+        <button class="quick-btn" (click)="applyMultiplier(3)">3x</button>
+        <button class="quick-btn" (click)="applyMultiplier(4)">4x</button>
+      </div>
+    </div>
+  }
+
+  <div class="action-row">
+    @if (canFold) {
+      <button class="action-btn fold" (click)="fold()">Fold</button>
+    }
+    @if (canCheck) {
+      <button class="action-btn check" (click)="check()">Check</button>
+    }
+    @if (canCall) {
+      <button class="action-btn call" (click)="call()">Call {{ callAmount | number }}</button>
+    }
+    @if (canRaise) {
+      <button class="action-btn raise" (click)="submitRaise()">Raise to {{ raiseAmount() | number }}</button>
+    }
+    @if (canAllIn) {
+      <button class="action-btn allin" (click)="allIn()">ALL-IN</button>
+    }
+  </div>
+</div>

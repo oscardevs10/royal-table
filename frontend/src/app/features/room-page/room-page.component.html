@@ -1,0 +1,28 @@
+@if (connecting()) {
+  <div class="status-screen">
+    <div class="spinner"></div>
+    <p>Conectando a la mesa...</p>
+  </div>
+} @else if (connectError()) {
+  <div class="status-screen">
+    <p class="error-text">{{ connectError() }}</p>
+    <button class="btn btn-gold" (click)="backToLanding()">Volver al inicio</button>
+  </div>
+} @else {
+  @if (store.roomState(); as room) {
+    @if (room.status === 'WAITING') {
+      <app-lobby />
+    } @else if (room.status === 'PLAYING') {
+      <app-table />
+    } @else {
+      <div class="status-screen">
+        <h2>Partida finalizada</h2>
+        @if (overallWinnerName; as name) {
+          <p class="winner-line">🏆 {{ name }} se lleva todas las fichas</p>
+        }
+        <p>Gracias por jugar en Royal Table.</p>
+        <button class="btn btn-gold" (click)="backToLanding()">Volver al inicio</button>
+      </div>
+    }
+  }
+}

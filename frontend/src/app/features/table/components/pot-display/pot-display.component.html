@@ -1,0 +1,14 @@
+@if (pot > 0) {
+  <div class="pot-display">
+    <div class="chip-stack">
+      <span class="chip c1"></span>
+      <span class="chip c2"></span>
+      <span class="chip c3"></span>
+    </div>
+    <span class="pot-label">POT</span>
+    <span class="pot-amount">{{ pot | number }}</span>
+    @if (sidePots.length > 1) {
+      <span class="side-pots-note">{{ sidePots.length }} botes</span>
+    }
+  </div>
+}
