@@ -92,6 +92,17 @@
   animation: fade-in-up 0.6s ease;
 }
 
+.demo-notice {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(91, 155, 213, 0.1);
+  border: 1px solid rgba(91, 155, 213, 0.3);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  max-width: 480px;
+  line-height: 1.4;
+}
+
 .badge {
   font-size: 0.72rem;
   font-weight: 700;

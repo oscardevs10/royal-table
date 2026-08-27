@@ -22,9 +22,28 @@ export class SocketService {
     return this.socket ?? this.connect();
   }
 
-  emitWithAck<TResponse = any>(event: string, payload: unknown): Promise<TResponse> {
+  /**
+   * Rejects the ack wait after a timeout instead of hanging forever - matters most
+   * when there's no reachable backend at all (e.g. a static demo deployment), where
+   * the server would otherwise never call the ack and the UI would spin indefinitely.
+   */
+  emitWithAck<TResponse = any>(event: string, payload: unknown, timeoutMs = 8000): Promise<TResponse> {
     return new Promise((resolve) => {
-      this.getSocket().emit(event, payload, (response: TResponse) => resolve(response));
+      const socket = this.getSocket();
+      let settled = false;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        resolve({ ok: false, error: 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.' } as TResponse);
+      }, timeoutMs);
+
+      socket.emit(event, payload, (response: TResponse) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(response);
+      });
     });
   }
 

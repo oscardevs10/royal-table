@@ -14,6 +14,14 @@ Durante la mano, un panel bajo la mesa muestra **tu jugada actual** (ej. "Par de
 
 ---
 
+## 0. Demo en vivo (solo interfaz)
+
+**https://oscardevs10.github.io/royal-table/**
+
+Es un despliegue estático del frontend en GitHub Pages para que puedas ver el diseño y la interfaz. GitHub Pages no puede correr el backend de Node.js/Socket.IO, así que **crear o unirse a una partida real no funcionará ahí** - la página lo indica con un aviso. Para jugar de verdad (con multijugador real), sigue los pasos de instalación de abajo y corre backend + frontend en tu máquina.
+
+---
+
 ## 1. Requisitos
 
 - Node.js 20+ (probado con Node 24)
