@@ -23,11 +23,12 @@ export class SocketService {
   }
 
   /**
-   * Rejects the ack wait after a timeout instead of hanging forever - matters most
-   * when there's no reachable backend at all (e.g. a static demo deployment), where
-   * the server would otherwise never call the ack and the UI would spin indefinitely.
+   * Rejects the ack wait after a timeout instead of hanging forever. The default is
+   * generous because the deployed backend runs on a free Render instance that spins
+   * down after inactivity - the first request after a while can take 30-50s to wake
+   * it back up, which would otherwise look identical to "no backend reachable".
    */
-  emitWithAck<TResponse = any>(event: string, payload: unknown, timeoutMs = 8000): Promise<TResponse> {
+  emitWithAck<TResponse = any>(event: string, payload: unknown, timeoutMs = 45000): Promise<TResponse> {
     return new Promise((resolve) => {
       const socket = this.getSocket();
       let settled = false;

@@ -9,7 +9,7 @@ import { Router, RouterLink } from '@angular/router';
   styleUrl: './landing.component.scss',
 })
 export class LandingComponent {
-  readonly isStaticDemo = window.location.hostname.endsWith('github.io');
+  readonly isHostedDemo = window.location.hostname.endsWith('github.io');
 
   constructor(private router: Router) {}
 

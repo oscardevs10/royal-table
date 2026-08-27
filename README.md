@@ -14,11 +14,26 @@ Durante la mano, un panel bajo la mesa muestra **tu jugada actual** (ej. "Par de
 
 ---
 
-## 0. Demo en vivo (solo interfaz)
+## 0. Demo en vivo (multijugador real)
 
 **https://oscardevs10.github.io/royal-table/**
 
-Es un despliegue estático del frontend en GitHub Pages para que puedas ver el diseño y la interfaz. GitHub Pages no puede correr el backend de Node.js/Socket.IO, así que **crear o unirse a una partida real no funcionará ahí** - la página lo indica con un aviso. Para jugar de verdad (con multijugador real), sigue los pasos de instalación de abajo y corre backend + frontend en tu máquina.
+El frontend está en GitHub Pages (estático) y el backend en Render (servicio gratuito, con soporte real de WebSockets). Puedes crear una partida real y compartir el código con cualquiera, desde cualquier lugar.
+
+> **Nota:** el backend gratuito de Render "se duerme" tras ~15 minutos sin uso. La primera acción tras un rato inactivo puede tardar hasta 30-50s en responder mientras el servidor despierta - es normal, no un error. La página lo avisa.
+
+### Cómo desplegar tu propio backend en Render (gratis)
+
+El repo ya incluye `render.yaml` listo para un despliegue con un clic, pero **tienes que crear la cuenta y conectar el repo tú mismo** (no puedo hacerlo por ti):
+
+1. Entra a [render.com](https://render.com) y crea una cuenta gratuita (puedes usar tu cuenta de GitHub para entrar directo).
+2. En el dashboard, **New +** → **Blueprint**.
+3. Conecta tu cuenta de GitHub y selecciona el repositorio `royal-table`.
+4. Render detecta el `render.yaml` automáticamente y propone crear el servicio `royal-table-backend`. Confirma con **Apply**.
+5. Espera a que termine el build (unos 2-3 minutos la primera vez). Cuando esté listo, Render te da una URL como `https://royal-table-backend.onrender.com`.
+6. Si el nombre te quedó distinto al de arriba, avísame la URL real para actualizar `frontend/src/app/core/config.ts` (`DEPLOYED_BACKEND_URL`) y volver a publicar el frontend en Pages.
+
+No hace falta configurar una base de datos: la partida vive en memoria en el servidor (que es la fuente de verdad), y sin `DATABASE_URL` el backend simplemente no guarda historial permanente - el juego funciona igual.
 
 ---
 
