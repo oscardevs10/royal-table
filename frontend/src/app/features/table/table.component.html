@@ -64,7 +64,5 @@
       (closePanel)="chatOpen.set(false)"
       (sendMessage)="sendChat($event)"
     />
-
-    <app-showdown-overlay [result]="store.showdown()" [isHost]="store.isHost()" (nextHand)="nextHand()" />
   </div>
 }

@@ -344,12 +344,32 @@ export class GameEngine {
 
     const actionablePlayers = this.state.players.filter(canAct);
     if (actionablePlayers.length <= 1) {
-      // Everyone remaining is all-in: auto-run out the rest of the board.
-      this.moveToNextPhase();
+      // Nobody left who can act (all-in runout): don't cascade through the rest of the
+      // board instantly. Leave it here - the caller paces the reveal via continueRunout().
+      this.state.currentPlayerPosition = -1;
       return;
     }
 
     this.state.currentPlayerPosition = this.nextOccupiedSeat(this.state.dealerPosition, (p) => canAct(p));
+  }
+
+  /**
+   * True while a hand is still live but nobody can act anymore (all-in runout, or an
+   * extreme short stack that went all-in just posting blinds). The caller (socket layer)
+   * is expected to advance one street at a time via continueRunout(), pacing each reveal,
+   * instead of the board being dealt out silently in a single instant.
+   */
+  isAllInRunout(): boolean {
+    if (!this.state.handInProgress || this.state.currentPhase === 'SHOWDOWN') return false;
+    const contesting = this.state.players.filter(isInHand);
+    if (contesting.length <= 1) return false;
+    return contesting.filter(canAct).length <= 1;
+  }
+
+  /** Deals exactly one more street (or runs the showdown from the river) during an all-in runout. */
+  continueRunout(): void {
+    if (!this.isAllInRunout()) return;
+    this.moveToNextPhase();
   }
 
   private finishHandByFold(): void {

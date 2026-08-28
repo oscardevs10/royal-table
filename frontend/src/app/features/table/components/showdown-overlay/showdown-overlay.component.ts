@@ -13,8 +13,10 @@ import { PlayingCardComponent } from '../playing-card/playing-card.component';
 export class ShowdownOverlayComponent {
   @Input() result: ShowdownResult | null = null;
   @Input() isHost = false;
+  @Input() isGameOver = false;
 
   @Output() nextHand = new EventEmitter<void>();
+  @Output() dismiss = new EventEmitter<void>();
 
   handDescriptionOf(playerId: string): string | null {
     const hand = this.result?.revealedHands.find((h) => h.playerId === playerId);

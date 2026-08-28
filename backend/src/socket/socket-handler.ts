@@ -12,6 +12,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const BOT_MIN_DELAY_MS = 700;
 const BOT_MAX_DELAY_MS = 1500;
+const RUNOUT_STEP_DELAY_MS = 1700;
 
 function roomChannel(code: string): string {
   return `room:${code}`;
@@ -95,8 +96,33 @@ async function processAction(
   broadcastGameState(io, room);
   await handleHandOutcomeIfAny(io, room);
   scheduleBotTurnIfNeeded(io, room);
+  scheduleRunoutIfNeeded(io, room);
 
   return { ok: true };
+}
+
+/**
+ * When nobody can act anymore but the hand isn't over (an all-in runout, or an
+ * extreme short stack that went all-in just posting blinds), deals the board out
+ * one street at a time with a pause between each - instead of resolving the whole
+ * rest of the hand silently in one instant - so players can watch cards get
+ * revealed and the community cards land one by one, like a real all-in showdown.
+ * Re-checks on each tick so a stale timer can never double-deal a street.
+ */
+function scheduleRunoutIfNeeded(io: AppServer, room: Room): void {
+  if (!room.engine || !room.engine.isAllInRunout()) return;
+  const handNumberAtSchedule = room.engine.getState().handNumber;
+
+  setTimeout(async () => {
+    if (!room.engine) return;
+    const state = room.engine.getState();
+    if (!state.handInProgress || state.handNumber !== handNumberAtSchedule) return;
+
+    room.engine.continueRunout();
+    broadcastGameState(io, room);
+    await handleHandOutcomeIfAny(io, room);
+    scheduleRunoutIfNeeded(io, room);
+  }, RUNOUT_STEP_DELAY_MS);
 }
 
 /**
@@ -247,6 +273,7 @@ export function registerSocketHandlers(io: AppServer): void {
       broadcastRoomState(io, result.data);
       broadcastGameState(io, result.data);
       scheduleBotTurnIfNeeded(io, result.data);
+      scheduleRunoutIfNeeded(io, result.data);
     });
 
     socket.on('game:action', async (payload, callback) => {
@@ -259,6 +286,7 @@ export function registerSocketHandlers(io: AppServer): void {
       if (!result.ok || !result.data) return;
       broadcastGameState(io, result.data);
       scheduleBotTurnIfNeeded(io, result.data);
+      scheduleRunoutIfNeeded(io, result.data);
     });
 
     socket.on('chat:message', (payload) => {

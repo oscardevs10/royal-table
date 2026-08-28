@@ -4,11 +4,12 @@ import { GameStoreService } from '../../core/services/game-store.service';
 import { SessionService } from '../../core/services/session.service';
 import { LobbyComponent } from '../lobby/lobby.component';
 import { TableComponent } from '../table/table.component';
+import { ShowdownOverlayComponent } from '../table/components/showdown-overlay/showdown-overlay.component';
 
 @Component({
   selector: 'app-room-page',
   standalone: true,
-  imports: [LobbyComponent, TableComponent],
+  imports: [LobbyComponent, TableComponent, ShowdownOverlayComponent],
   templateUrl: './room-page.component.html',
   styleUrl: './room-page.component.scss',
 })
@@ -43,6 +44,14 @@ export class RoomPageComponent implements OnInit {
   backToLanding(): void {
     this.store.leaveRoom();
     this.router.navigate(['/']);
+  }
+
+  nextHand(): void {
+    this.store.nextHand();
+  }
+
+  dismissShowdown(): void {
+    this.store.dismissShowdown();
   }
 
   get overallWinnerName(): string | null {

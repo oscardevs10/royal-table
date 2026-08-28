@@ -24,5 +24,13 @@
         <button class="btn btn-gold" (click)="backToLanding()">Volver al inicio</button>
       </div>
     }
+
+    <app-showdown-overlay
+      [result]="store.showdown()"
+      [isHost]="store.isHost()"
+      [isGameOver]="room.status === 'FINISHED'"
+      (nextHand)="nextHand()"
+      (dismiss)="dismissShowdown()"
+    />
   }
 }

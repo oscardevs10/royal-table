@@ -78,6 +78,10 @@ export function buildGameStateDTO(room: Room, recipientPlayerId: string): GameSt
   const me = state.players.find((p) => p.id === recipientPlayerId);
   if (!me) return null;
 
+  // During an all-in runout (nobody left to act) and at showdown, hands are shown face-up
+  // on the table itself - not just in the showdown popup - so everyone can watch the reveal.
+  const revealOnTable = room.engine.isAllInRunout() || state.currentPhase === 'SHOWDOWN';
+
   const players: PlayerPublicDTO[] = state.players.map((p: PlayerState) => ({
     id: p.id,
     name: p.name,
@@ -91,6 +95,7 @@ export function buildGameStateDTO(room: Room, recipientPlayerId: string): GameSt
     isBot: p.isBot,
     hasCards: p.holeCards.length > 0 && p.status !== 'OUT',
     isCurrentTurn: p.seatIndex === state.currentPlayerPosition && state.handInProgress,
+    revealedHoleCards: revealOnTable && p.holeCards.length > 0 && p.status !== 'FOLDED' ? p.holeCards : undefined,
   }));
 
   const pot = state.players.reduce((sum, p) => sum + p.totalBetInHand, 0);

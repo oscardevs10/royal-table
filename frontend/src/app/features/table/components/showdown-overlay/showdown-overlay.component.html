@@ -32,7 +32,9 @@
         </div>
       }
 
-      @if (isHost) {
+      @if (isGameOver) {
+        <button class="btn btn-gold next-btn" (click)="dismiss.emit()">Ver resultado final</button>
+      } @else if (isHost) {
         <button class="btn btn-gold next-btn" (click)="nextHand.emit()">Next Hand</button>
       } @else {
         <div class="waiting-note">Esperando al anfitrión para la siguiente mano...</div>

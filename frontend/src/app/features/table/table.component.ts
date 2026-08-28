@@ -10,7 +10,6 @@ import { CommunityCardsComponent } from './components/community-cards/community-
 import { PotDisplayComponent } from './components/pot-display/pot-display.component';
 import { BettingControlsComponent } from './components/betting-controls/betting-controls.component';
 import { ChatPanelComponent } from './components/chat-panel/chat-panel.component';
-import { ShowdownOverlayComponent } from './components/showdown-overlay/showdown-overlay.component';
 import { HandOddsPanelComponent } from './components/hand-odds-panel/hand-odds-panel.component';
 
 interface SeatView {
@@ -46,7 +45,6 @@ const PHASE_LABELS: Record<string, string> = {
     PotDisplayComponent,
     BettingControlsComponent,
     ChatPanelComponent,
-    ShowdownOverlayComponent,
     HandOddsPanelComponent,
   ],
   templateUrl: './table.component.html',
@@ -127,10 +125,6 @@ export class TableComponent {
 
   async handleAction(evt: { type: ActionType; amount?: number }): Promise<void> {
     await this.store.sendAction(evt.type, evt.amount);
-  }
-
-  nextHand(): void {
-    this.store.nextHand();
   }
 
   sendChat(text: string): void {

@@ -26,6 +26,12 @@ describe('Bot AI', () => {
 
     let guard = 0;
     while (engine.getState().handInProgress && guard < 100) {
+      if (engine.isAllInRunout()) {
+        engine.continueRunout();
+        guard++;
+        continue;
+      }
+
       const state = engine.getState();
       const bot = actingPlayer(engine);
       const decision = decideBotAction(state, bot);
@@ -47,6 +53,12 @@ describe('Bot AI', () => {
 
     let guard = 0;
     while (engine.getState().handInProgress && guard < 150) {
+      if (engine.isAllInRunout()) {
+        engine.continueRunout();
+        guard++;
+        continue;
+      }
+
       const state = engine.getState();
       const bot = actingPlayer(engine);
       const decision = decideBotAction(state, bot);
@@ -66,6 +78,12 @@ describe('Bot AI', () => {
 
     let guard = 0;
     while (engine.getState().handInProgress && guard < 100) {
+      if (engine.isAllInRunout()) {
+        engine.continueRunout();
+        guard++;
+        continue;
+      }
+
       const state = engine.getState();
       const bot = actingPlayer(engine);
       const decision = decideBotAction(state, bot);
@@ -79,5 +97,22 @@ describe('Bot AI', () => {
       engine.applyAction(bot.id, decision.type, decision.amount);
       guard++;
     }
+  });
+
+  it('resolves an all-in runout to showdown via continueRunout without ever needing a decision mid-runout', () => {
+    const engine = new GameEngine('room1', 'DDDDD', makeSeats(2, 50), 10, 20);
+    engine.startNewHand();
+
+    const acting = actingPlayer(engine);
+    engine.applyAction(acting.id, 'ALL_IN');
+
+    let guard = 0;
+    while (engine.isAllInRunout() && guard < 10) {
+      engine.continueRunout();
+      guard++;
+    }
+
+    expect(engine.getState().currentPhase).toBe('SHOWDOWN');
+    expect(engine.getState().players.reduce((s, p) => s + p.chips, 0)).toBe(100);
   });
 });

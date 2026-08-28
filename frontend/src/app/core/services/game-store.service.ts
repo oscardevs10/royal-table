@@ -218,6 +218,10 @@ export class GameStoreService {
     this.showdown.set(null);
   }
 
+  dismissShowdown(): void {
+    this.showdown.set(null);
+  }
+
   sendChatMessage(text: string): void {
     const session = this.session.session();
     if (!session || !text.trim()) return;

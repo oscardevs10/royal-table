@@ -100,7 +100,7 @@ describe('GameEngine - 2 players (heads-up)', () => {
 });
 
 describe('GameEngine - all-in runout', () => {
-  it('auto-deals remaining streets when all active players are all-in', () => {
+  it('does not cascade through the whole board instantly - it waits for continueRunout() one street at a time', () => {
     const seats = makeSeats(2, 100);
     const engine = new GameEngine('room1', 'BBBBB', seats, 10, 20);
     engine.startNewHand();
@@ -110,10 +110,39 @@ describe('GameEngine - all-in runout', () => {
     const next = actingPlayer(engine);
     engine.applyAction(next.id, 'ALL_IN');
 
+    // Both players are all-in pre-flop: the engine deals the flop as part of that
+    // last action (the natural extension of the betting round completing), then
+    // stops and waits - it must not silently resolve turn/river/showdown too.
+    expect(engine.getState().currentPhase).toBe('FLOP');
+    expect(engine.getState().communityCards).toHaveLength(3);
+    expect(engine.isAllInRunout()).toBe(true);
+    expect(engine.getState().handInProgress).toBe(true);
+
+    engine.continueRunout();
+    expect(engine.getState().currentPhase).toBe('TURN');
+    expect(engine.getState().communityCards).toHaveLength(4);
+
+    engine.continueRunout();
+    expect(engine.getState().currentPhase).toBe('RIVER');
+    expect(engine.getState().communityCards).toHaveLength(5);
+    expect(engine.isAllInRunout()).toBe(true); // showdown still pending
+
+    engine.continueRunout();
     const state = engine.getState();
     expect(state.currentPhase).toBe('SHOWDOWN');
-    expect(state.communityCards).toHaveLength(5);
+    expect(state.handInProgress).toBe(false);
+    expect(engine.isAllInRunout()).toBe(false);
     expect(state.players.reduce((s, p) => s + p.chips, 0)).toBe(200);
+  });
+
+  it('continueRunout is a no-op when it is not actually an all-in runout', () => {
+    const engine = new GameEngine('room1', 'BBBBC', makeSeats(2), 10, 20);
+    engine.startNewHand();
+    expect(engine.isAllInRunout()).toBe(false);
+
+    const before = engine.getState().currentPhase;
+    engine.continueRunout();
+    expect(engine.getState().currentPhase).toBe(before);
   });
 });
 
@@ -195,19 +224,26 @@ describe('GameEngine - 6 players', () => {
 
 describe('GameEngine - eliminations', () => {
   it('marks a player OUT when they lose all their chips', () => {
+    // Both players start with just enough chips to be fully committed by the blinds
+    // alone, so a single all-in action is enough to trigger the runout.
     const seats = makeSeats(2, 20);
     const engine = new GameEngine('room1', 'FFFFF', seats, 10, 20);
     engine.startNewHand();
 
     const acting = actingPlayer(engine);
     engine.applyAction(acting.id, 'ALL_IN');
-    const next = actingPlayer(engine);
-    engine.applyAction(next.id, 'ALL_IN');
+
+    let guard = 0;
+    while (engine.isAllInRunout() && guard < 10) {
+      engine.continueRunout();
+      guard++;
+    }
 
     const eliminated = engine.consumeEliminated();
     const state = engine.getState();
+    expect(state.currentPhase).toBe('SHOWDOWN');
     const outPlayers = state.players.filter((p) => p.status === 'OUT');
-    expect(outPlayers.length).toBeGreaterThanOrEqual(0);
+    expect(outPlayers.length).toBeGreaterThan(0);
     expect(eliminated.length).toBe(outPlayers.length);
   });
 });
