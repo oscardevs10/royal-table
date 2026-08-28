@@ -3,10 +3,14 @@ import { LobbyPlayer } from '../players/player.types';
 import { createLobbyPlayer, createBotPlayer } from '../players/player.service';
 import { generateRoomCode } from '../../utils/room-code';
 import { GameEngine } from '../poker/game-engine';
+import { ConquianEngine } from '../conquian/conquian-engine';
+import { Card } from '../../types/card.types';
+import { DrawSource } from '../conquian/conquian.types';
 import { v4 as uuidv4 } from 'uuid';
 import { persistenceService } from '../../database/persistence.service';
 
 const ALLOWED_MAX_PLAYERS = [2, 3, 4, 5, 6, 8];
+const ALLOWED_CONQUIAN_MAX_PLAYERS = [2, 3, 4];
 
 export interface ServiceResult<T> {
   ok: boolean;
@@ -19,10 +23,18 @@ class RoomService {
   private roomCodeBySession = new Map<string, string>();
 
   private validateConfig(config: RoomConfig): string | null {
-    if (!ALLOWED_MAX_PLAYERS.includes(config.maxPlayers)) return 'Invalid max players';
     if (!Number.isInteger(config.startingStack) || config.startingStack < 100 || config.startingStack > 1_000_000) {
       return 'Invalid starting stack';
     }
+
+    if (config.gameMode === 'CONQUIAN') {
+      if (!ALLOWED_CONQUIAN_MAX_PLAYERS.includes(config.maxPlayers)) return 'Invalid max players';
+      if (!Number.isInteger(config.ante) || config.ante <= 0) return 'Invalid ante';
+      if (config.ante > config.startingStack) return 'Ante cannot exceed starting stack';
+      return null;
+    }
+
+    if (!ALLOWED_MAX_PLAYERS.includes(config.maxPlayers)) return 'Invalid max players';
     if (!Number.isInteger(config.smallBlind) || config.smallBlind <= 0) return 'Invalid small blind';
     if (!Number.isInteger(config.bigBlind) || config.bigBlind <= config.smallBlind) return 'Big blind must be greater than small blind';
     if (config.bigBlind > config.startingStack) return 'Big blind cannot exceed starting stack';
@@ -100,6 +112,7 @@ class RoomService {
     if (!player.isHost) return { ok: false, error: 'Only the host can add bots' };
     if (room.status !== 'WAITING') return { ok: false, error: 'Cannot add bots once the game has started' };
     if (room.players.length >= room.config.maxPlayers) return { ok: false, error: 'Room is full' };
+    if (room.config.gameMode === 'CONQUIAN') return { ok: false, error: 'Bots are not supported in Conquian yet' };
 
     const bot = createBotPlayer({
       seatIndex: room.players.length,
@@ -148,21 +161,21 @@ class RoomService {
     if (room.players.length < 2) return { ok: false, error: 'Need at least 2 players' };
 
     room.status = 'PLAYING';
-    room.engine = new GameEngine(
-      room.id,
-      room.code,
-      room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        chips: p.chips,
-        seatIndex: p.seatIndex,
-        sessionToken: p.sessionToken,
-        isHost: p.isHost,
-        isBot: p.isBot,
-      })),
-      room.config.smallBlind,
-      room.config.bigBlind
-    );
+
+    const seats = room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      chips: p.chips,
+      seatIndex: p.seatIndex,
+      sessionToken: p.sessionToken,
+      isHost: p.isHost,
+      isBot: p.isBot,
+    }));
+
+    room.engine =
+      room.config.gameMode === 'CONQUIAN'
+        ? new ConquianEngine(room.id, room.code, seats, room.config.ante)
+        : new GameEngine(room.id, room.code, seats, room.config.smallBlind, room.config.bigBlind);
 
     await persistenceService.updateRoomStatus(room.id, 'PLAYING');
     await persistenceService.startGame(room.id);
@@ -173,13 +186,52 @@ class RoomService {
     return { ok: true, data: room };
   }
 
-  applyAction(sessionToken: string, type: string, amount?: number): ServiceResult<Room> {
+  applyPokerAction(sessionToken: string, type: string, amount?: number): ServiceResult<Room> {
     const found = this.findBySession(sessionToken);
     if (!found) return { ok: false, error: 'Player not found' };
     const { room, player } = found;
-    if (!room.engine) return { ok: false, error: 'Game not started' };
+    if (!room.engine || room.config.gameMode !== 'HOLDEM') return { ok: false, error: 'Game not started' };
 
-    const result = room.engine.applyAction(player.id, type as any, amount);
+    const result = (room.engine as GameEngine).applyAction(player.id, type as any, amount);
+    if (!result.success) return { ok: false, error: result.error };
+
+    this.syncChipsFromEngine(room);
+    return { ok: true, data: room };
+  }
+
+  conquianDraw(sessionToken: string, source: DrawSource): ServiceResult<Room> {
+    const found = this.findBySession(sessionToken);
+    if (!found) return { ok: false, error: 'Player not found' };
+    const { room, player } = found;
+    if (!room.engine || room.config.gameMode !== 'CONQUIAN') return { ok: false, error: 'Game not started' };
+
+    const result = (room.engine as ConquianEngine).draw(player.id, source);
+    if (!result.success) return { ok: false, error: result.error };
+
+    this.syncChipsFromEngine(room);
+    return { ok: true, data: room };
+  }
+
+  conquianMeld(sessionToken: string, cards: Card[], targetMeldId?: string): ServiceResult<Room> {
+    const found = this.findBySession(sessionToken);
+    if (!found) return { ok: false, error: 'Player not found' };
+    const { room, player } = found;
+    if (!room.engine || room.config.gameMode !== 'CONQUIAN') return { ok: false, error: 'Game not started' };
+
+    const result = (room.engine as ConquianEngine).meld(player.id, cards, targetMeldId);
+    if (!result.success) return { ok: false, error: result.error };
+
+    this.syncChipsFromEngine(room);
+    return { ok: true, data: room };
+  }
+
+  conquianDiscard(sessionToken: string, card: Card): ServiceResult<Room> {
+    const found = this.findBySession(sessionToken);
+    if (!found) return { ok: false, error: 'Player not found' };
+    const { room, player } = found;
+    if (!room.engine || room.config.gameMode !== 'CONQUIAN') return { ok: false, error: 'Game not started' };
+
+    const result = (room.engine as ConquianEngine).discard(player.id, card);
     if (!result.success) return { ok: false, error: result.error };
 
     this.syncChipsFromEngine(room);

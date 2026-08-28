@@ -1,0 +1,81 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 5, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fade-in 0.25s ease;
+  padding: 1.5rem;
+}
+
+.overlay-content {
+  padding: 2rem 2.25rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  animation: fade-in-up 0.35s ease;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.winner-block {
+  margin-bottom: 1.5rem;
+}
+
+.winner-crown {
+  font-size: 2.2rem;
+  animation: bounce-in 0.5s ease;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.winner-name {
+  font-size: 1.5rem;
+  color: var(--gold-bright);
+  margin: 0.4rem 0 0.2rem;
+}
+
+.winner-hand {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.winner-amount {
+  color: var(--success);
+  font-weight: 800;
+  font-size: 1.3rem;
+  margin: 0.4rem 0 0.8rem;
+}
+
+.winner-amount.push {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.next-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.waiting-note {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}

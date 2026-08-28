@@ -4,7 +4,7 @@
       <button class="leave-btn" (click)="leave()" title="Salir">←</button>
 
       <div class="room-code-block">
-        <span class="field-label">Código de sala</span>
+        <span class="field-label">{{ room.gameMode === 'CONQUIAN' ? 'Conquián' : "Texas Hold'em" }} · Código de sala</span>
         <div class="room-code">{{ room.code }}</div>
         <button class="btn btn-ghost copy-btn" (click)="copyInvite()">
           {{ copied() ? '¡Copiado!' : 'Copiar invitación' }}
@@ -51,21 +51,25 @@
           }
         </div>
 
-        @if (store.isHost() && room.players.length < room.maxPlayers) {
+        @if (room.gameMode === 'HOLDEM' && store.isHost() && room.players.length < room.maxPlayers) {
           <button class="btn btn-ghost add-bot-btn" [disabled]="addingBot()" (click)="addBot()">
             {{ addingBot() ? 'Agregando...' : '+ Agregar Bot' }}
           </button>
         }
       </div>
 
-      @if (store.isHost() && room.players.length === 1) {
+      @if (room.gameMode === 'HOLDEM' && store.isHost() && room.players.length === 1) {
         <p class="solo-hint">¿Jugando solo? Agrega al menos un bot para poder comenzar.</p>
       }
 
       <div class="config-summary">
         <div class="config-item"><span>Stack inicial</span><strong>{{ room.startingStack | number }}</strong></div>
-        <div class="config-item"><span>Small Blind</span><strong>{{ room.smallBlind | number }}</strong></div>
-        <div class="config-item"><span>Big Blind</span><strong>{{ room.bigBlind | number }}</strong></div>
+        @if (room.gameMode === 'CONQUIAN') {
+          <div class="config-item"><span>Apuesta (ante)</span><strong>{{ room.ante | number }}</strong></div>
+        } @else {
+          <div class="config-item"><span>Small Blind</span><strong>{{ room.smallBlind | number }}</strong></div>
+          <div class="config-item"><span>Big Blind</span><strong>{{ room.bigBlind | number }}</strong></div>
+        }
       </div>
 
       @if (store.isHost()) {

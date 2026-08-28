@@ -9,6 +9,10 @@ import {
   RoomStateDTO,
   ShowdownResult,
   ActionType,
+  ConquianStateDTO,
+  ConquianHandResultDTO,
+  DrawSource,
+  Card,
 } from '../models/game.models';
 
 export interface Toast {
@@ -27,6 +31,8 @@ export class GameStoreService {
   readonly roomState = signal<RoomStateDTO | null>(null);
   readonly gameState = signal<GameStateDTO | null>(null);
   readonly showdown = signal<ShowdownResult | null>(null);
+  readonly conquianState = signal<ConquianStateDTO | null>(null);
+  readonly conquianHandResult = signal<ConquianHandResultDTO | null>(null);
   readonly chatMessages = signal<ChatMessage[]>([]);
   readonly errorMessage = signal<string | null>(null);
   readonly toasts = signal<Toast[]>([]);
@@ -97,6 +103,20 @@ export class GameStoreService {
       };
       const sound = soundMap[payload.type];
       if (sound) this.audio.play(sound);
+    });
+
+    this.socket.on<ConquianStateDTO>('conquian:state', (state) => {
+      const previous = this.conquianState();
+      this.conquianState.set(state);
+      if (!previous || state.handNumber !== previous.handNumber) {
+        this.audio.play('deal');
+        this.conquianHandResult.set(null);
+      }
+    });
+
+    this.socket.on<ConquianHandResultDTO>('conquian:hand-result', (result) => {
+      this.conquianHandResult.set(result);
+      this.audio.play('win');
     });
 
     const socket = this.socket.getSocket();
@@ -216,10 +236,46 @@ export class GameStoreService {
     if (!session) return;
     this.socket.emit('game:next-hand', { sessionToken: session.sessionToken });
     this.showdown.set(null);
+    this.conquianHandResult.set(null);
   }
 
   dismissShowdown(): void {
     this.showdown.set(null);
+  }
+
+  dismissConquianHandResult(): void {
+    this.conquianHandResult.set(null);
+  }
+
+  async conquianDraw(source: DrawSource): Promise<{ ok: boolean; error?: string }> {
+    const session = this.session.session();
+    if (!session) return { ok: false, error: 'No hay sesión activa' };
+    const res = await this.socket.emitWithAck<{ ok: boolean; error?: string }>('conquian:draw', { sessionToken: session.sessionToken, source });
+    if (!res.ok) this.errorMessage.set(res.error ?? 'Acción inválida');
+    return res;
+  }
+
+  async conquianMeld(cards: Card[], targetMeldId?: string): Promise<{ ok: boolean; error?: string }> {
+    const session = this.session.session();
+    if (!session) return { ok: false, error: 'No hay sesión activa' };
+    const res = await this.socket.emitWithAck<{ ok: boolean; error?: string }>('conquian:meld', {
+      sessionToken: session.sessionToken,
+      cards,
+      targetMeldId,
+    });
+    if (!res.ok) this.errorMessage.set(res.error ?? 'Combinación inválida');
+    return res;
+  }
+
+  async conquianDiscard(card: Card): Promise<{ ok: boolean; error?: string }> {
+    const session = this.session.session();
+    if (!session) return { ok: false, error: 'No hay sesión activa' };
+    const res = await this.socket.emitWithAck<{ ok: boolean; error?: string }>('conquian:discard', {
+      sessionToken: session.sessionToken,
+      card,
+    });
+    if (!res.ok) this.errorMessage.set(res.error ?? 'Acción inválida');
+    return res;
   }
 
   sendChatMessage(text: string): void {
@@ -235,6 +291,8 @@ export class GameStoreService {
     this.roomState.set(null);
     this.gameState.set(null);
     this.showdown.set(null);
+    this.conquianState.set(null);
+    this.conquianHandResult.set(null);
     this.chatMessages.set([]);
   }
 

@@ -18,10 +18,12 @@ class PersistenceService {
         data: {
           id: roomId,
           code,
+          gameMode: config.gameMode,
           maxPlayers: config.maxPlayers,
           startingStack: config.startingStack,
-          smallBlind: config.smallBlind,
-          bigBlind: config.bigBlind,
+          smallBlind: config.gameMode === 'HOLDEM' ? config.smallBlind : null,
+          bigBlind: config.gameMode === 'HOLDEM' ? config.bigBlind : null,
+          ante: config.gameMode === 'CONQUIAN' ? config.ante : null,
         },
       });
     } catch (err) {

@@ -1,6 +1,6 @@
 # Royal Table 🂡
 
-Texas Hold'em multijugador online, en tiempo real, con fichas 100% virtuales (sin dinero real).
+Casino multijugador online, en tiempo real, con fichas 100% virtuales (sin dinero real). Incluye dos juegos: **Texas Hold'em** y **Conquián**.
 
 - **Frontend**: Angular 19 + TypeScript + SCSS + Signals
 - **Backend**: Node.js + TypeScript + Express + Socket.IO
@@ -11,6 +11,16 @@ El servidor es la única autoridad del juego: baraja, reparte y valida cada acci
 También puedes **jugar solo**: en la lobby, el anfitrión puede pulsar **+ Agregar Bot** para sumar oponentes controlados por el servidor. Los bots deciden sus jugadas con una IA heurística real (evalúa la fuerza de su mano con el mismo evaluador que juzga el showdown) y actúan automáticamente con un pequeño retraso, a través del mismo camino de validación que un jugador humano.
 
 Durante la mano, un panel bajo la mesa muestra **tu jugada actual** (ej. "Par de Reyes") y, si lo expandes, la **probabilidad de terminar en cada categoría de mano** (Par, Color, Escalera...), calculada en el servidor sobre las cartas que aún no salieron (enumeración exacta en flop/turn, simulación tipo Monte Carlo antes del flop). Las cartas también se reparten con una animación escalonada por asiento, siguiendo el orden real de reparto.
+
+### Conquián
+
+El otro modo de juego es **Conquián** (el ancestro mexicano del Rummy/Gin Rummy). El juego clásico es estrictamente para 2 jugadores; aquí se adaptó para **2-4 jugadores** usando la convención estándar de Rummy multijugador (menos cartas por jugador cuantos más juegan: 10 con 2, 7 con 3, 6 con 4).
+
+Reglas de esta versión:
+- En tu turno: robas del mazo o del descarte, puedes formar combinaciones (tríos/pókers del mismo valor, o escaleras de 3+ del mismo palo) o agregar cartas a combinaciones **ya bajadas por cualquier jugador** (las combinaciones son compartidas, como en el Conquián real), y terminas descartando una carta.
+- Cada mano se juega por una **apuesta fija (ante)** que todos ponen al bote; el primero en quedarse sin cartas en mano se lo lleva.
+- Si el mazo se agota antes de que alguien se plante, la mano se declara empatada y se devuelve la apuesta a todos.
+- Por ahora Conquián es **solo multijugador humano** (sin bots) - el botón de agregar bots no aparece en ese modo.
 
 ---
 
@@ -144,3 +154,5 @@ Esta primera versión está pensada para desarrollo local / LAN. Para producció
 - **Sonidos**: se generan sintéticamente con la Web Audio API (sin archivos de audio placeholder) para que el feedback sonoro sea real desde el primer día. Se pueden reemplazar por samples reales en `AudioService` cuando existan assets definitivos.
 - **Sin límite de tiempo por turno**: no hay temporizador que fuerce fold/check automático si un jugador no actúa. Sería una mejora natural para partidas competitivas.
 - **IA de los bots**: es una heurística simple (fuerza de mano estimada + algo de aleatoriedad para no ser 100% predecible), no un solver de GTO. Juega de forma razonable pero no es un adversario "difícil" a propósito - es pensada para practicar/completar mesas, no para desafiar a un jugador experto.
+- **Conquián sin bots**: la IA de bots existe solo para Texas Hold'em por ahora; agregarla a Conquián es una extensión natural (heurística: priorizar robar del descarte si completa una combinación, descartar la carta menos útil).
+- **Conquián - robar del descarte**: se puede tomar la carta superior del descarte libremente, sin forzar que se use esa misma carta en una combinación ese turno (simplificación respecto a la regla estricta de algunas variantes de Rummy).

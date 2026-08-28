@@ -94,13 +94,17 @@ export interface RoomPlayerDTO {
   isBot: boolean;
 }
 
+export type GameMode = 'HOLDEM' | 'CONQUIAN';
+
 export interface RoomStateDTO {
   roomId: string;
   code: string;
+  gameMode: GameMode;
   maxPlayers: number;
   startingStack: number;
-  smallBlind: number;
-  bigBlind: number;
+  smallBlind?: number;
+  bigBlind?: number;
+  ante?: number;
   status: 'WAITING' | 'PLAYING' | 'FINISHED';
   players: RoomPlayerDTO[];
 }
@@ -128,8 +132,70 @@ export interface ChatMessage {
 
 export interface CreateRoomPayload {
   playerName: string;
+  gameMode: GameMode;
   maxPlayers: number;
   startingStack: number;
-  smallBlind: number;
-  bigBlind: number;
+  smallBlind?: number;
+  bigBlind?: number;
+  ante?: number;
+}
+
+// --- Conquian ---
+
+export type MeldType = 'SET' | 'RUN';
+export type ConquianPlayerStatus = 'ACTIVE' | 'OUT';
+export type TurnPhase = 'DRAW' | 'ACT';
+export type DrawSource = 'STOCK' | 'DISCARD';
+
+export interface ConquianMeldDTO {
+  id: string;
+  type: MeldType;
+  cards: Card[];
+  laidByPlayerId: string;
+}
+
+export interface ConquianPlayerPublicDTO {
+  id: string;
+  name: string;
+  seatIndex: number;
+  chips: number;
+  status: ConquianPlayerStatus;
+  connected: boolean;
+  isBot: boolean;
+  isHost: boolean;
+  handCount: number;
+  isCurrentTurn: boolean;
+}
+
+export interface ConquianAvailableActions {
+  canDrawStock: boolean;
+  canDrawDiscard: boolean;
+  canDiscard: boolean;
+}
+
+export interface ConquianStateDTO {
+  roomId: string;
+  roomCode: string;
+  handNumber: number;
+  players: ConquianPlayerPublicDTO[];
+  dealerPosition: number;
+  currentPlayerPosition: number;
+  stockCount: number;
+  discardTopCard: Card | null;
+  discardCount: number;
+  melds: ConquianMeldDTO[];
+  ante: number;
+  pot: number;
+  turnPhase: TurnPhase;
+  handInProgress: boolean;
+  myPlayerId: string;
+  myHand: Card[];
+  myAvailableActions: ConquianAvailableActions;
+}
+
+export interface ConquianHandResultDTO {
+  winnerId: string | null;
+  winnerName: string | null;
+  potWon: number;
+  isPush: boolean;
 }

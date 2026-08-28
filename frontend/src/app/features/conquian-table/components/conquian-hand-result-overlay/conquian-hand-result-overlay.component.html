@@ -1,0 +1,28 @@
+@if (result; as r) {
+  <div class="overlay">
+    <div class="overlay-content glass-panel">
+      @if (r.isPush) {
+        <div class="winner-block">
+          <div class="winner-crown">🂠</div>
+          <h2 class="winner-name">MANO EMPATADA</h2>
+          <div class="winner-hand">Se acabó el mazo antes de que alguien se plantara</div>
+          <div class="winner-amount push">Se devolvió la apuesta a todos</div>
+        </div>
+      } @else {
+        <div class="winner-block">
+          <div class="winner-crown">👑</div>
+          <h2 class="winner-name">{{ (r.winnerName || '').toUpperCase() }} SE PLANTÓ</h2>
+          <div class="winner-amount">+{{ r.potWon | number }} chips</div>
+        </div>
+      }
+
+      @if (isGameOver) {
+        <button class="btn btn-gold next-btn" (click)="dismiss.emit()">Ver resultado final</button>
+      } @else if (isHost) {
+        <button class="btn btn-gold next-btn" (click)="nextHand.emit()">Next Hand</button>
+      } @else {
+        <div class="waiting-note">Esperando al anfitrión para la siguiente mano...</div>
+      }
+    </div>
+  </div>
+}

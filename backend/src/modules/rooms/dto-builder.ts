@@ -1,6 +1,7 @@
 import { Room } from './room.types';
 import { GameStateDTO, PlayerPublicDTO, RoomStateDTO, RoomPlayerDTO } from '../../types/dto.types';
 import { GameState, PlayerState } from '../../types/game.types';
+import { GameEngine } from '../poker/game-engine';
 import { getAvailableActions, callAmount } from '../poker/betting-round';
 import { calculateHandOdds, describeCurrentHand, oddsToSortedList, CurrentHandInfo, HandOddsEntry } from '../poker/hand-odds';
 
@@ -18,10 +19,12 @@ export function buildRoomStateDTO(room: Room): RoomStateDTO {
   return {
     roomId: room.id,
     code: room.code,
+    gameMode: room.config.gameMode,
     maxPlayers: room.config.maxPlayers,
     startingStack: room.config.startingStack,
-    smallBlind: room.config.smallBlind,
-    bigBlind: room.config.bigBlind,
+    smallBlind: room.config.gameMode === 'HOLDEM' ? room.config.smallBlind : undefined,
+    bigBlind: room.config.gameMode === 'HOLDEM' ? room.config.bigBlind : undefined,
+    ante: room.config.gameMode === 'CONQUIAN' ? room.config.ante : undefined,
     status: room.status,
     players,
   };
@@ -73,14 +76,15 @@ function getHandInsights(room: Room, state: GameState, me: PlayerState): HandIns
  * showdown (tracked separately, not embedded in the live GameState).
  */
 export function buildGameStateDTO(room: Room, recipientPlayerId: string): GameStateDTO | null {
-  if (!room.engine) return null;
-  const state = room.engine.getState();
+  if (!room.engine || room.config.gameMode !== 'HOLDEM') return null;
+  const engine = room.engine as GameEngine;
+  const state = engine.getState();
   const me = state.players.find((p) => p.id === recipientPlayerId);
   if (!me) return null;
 
   // During an all-in runout (nobody left to act) and at showdown, hands are shown face-up
   // on the table itself - not just in the showdown popup - so everyone can watch the reveal.
-  const revealOnTable = room.engine.isAllInRunout() || state.currentPhase === 'SHOWDOWN';
+  const revealOnTable = engine.isAllInRunout() || state.currentPhase === 'SHOWDOWN';
 
   const players: PlayerPublicDTO[] = state.players.map((p: PlayerState) => ({
     id: p.id,

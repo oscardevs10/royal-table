@@ -6,6 +6,18 @@
 
     <form (ngSubmit)="submit()" #form="ngForm">
       <div class="field">
+        <span class="field-label">Modo de juego</span>
+        <div class="mode-row">
+          <button type="button" class="mode-btn" [class.active]="gameMode === 'HOLDEM'" (click)="selectMode('HOLDEM')">
+            🂡 Texas Hold'em
+          </button>
+          <button type="button" class="mode-btn" [class.active]="gameMode === 'CONQUIAN'" (click)="selectMode('CONQUIAN')">
+            🃏 Conquián
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
         <label class="field-label" for="name">Nombre del jugador</label>
         <input
           id="name"
@@ -44,16 +56,24 @@
         </div>
       </div>
 
-      <div class="blinds-row">
-        <div class="field">
-          <label class="field-label" for="sb">Small Blind</label>
-          <input id="sb" class="text-input" type="number" [(ngModel)]="smallBlind" name="smallBlind" min="1" required />
+      @if (gameMode === 'HOLDEM') {
+        <div class="blinds-row">
+          <div class="field">
+            <label class="field-label" for="sb">Small Blind</label>
+            <input id="sb" class="text-input" type="number" [(ngModel)]="smallBlind" name="smallBlind" min="1" required />
+          </div>
+          <div class="field">
+            <label class="field-label" for="bb">Big Blind</label>
+            <input id="bb" class="text-input" type="number" [(ngModel)]="bigBlind" name="bigBlind" min="2" required />
+          </div>
         </div>
+      } @else {
         <div class="field">
-          <label class="field-label" for="bb">Big Blind</label>
-          <input id="bb" class="text-input" type="number" [(ngModel)]="bigBlind" name="bigBlind" min="2" required />
+          <label class="field-label" for="ante">Apuesta por mano (ante)</label>
+          <input id="ante" class="text-input" type="number" [(ngModel)]="ante" name="ante" min="1" required />
         </div>
-      </div>
+        <p class="mode-note">Cada jugador aporta esta cantidad al bote en cada mano. Quien se planta primero se lo lleva.</p>
+      }
 
       @if (formError()) {
         <div class="form-error">{{ formError() }}</div>

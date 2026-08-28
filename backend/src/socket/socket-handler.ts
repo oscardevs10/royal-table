@@ -2,7 +2,10 @@ import { Server, Socket } from 'socket.io';
 import { ClientToServerEvents, ServerToClientEvents } from '../types/socket-events.types';
 import { roomService } from '../modules/rooms/room.service';
 import { buildGameStateDTO, buildRoomStateDTO } from '../modules/rooms/dto-builder';
-import { Room } from '../modules/rooms/room.types';
+import { buildConquianStateDTO } from '../modules/conquian/conquian-dto-builder';
+import { Room, RoomConfig, GameMode } from '../modules/rooms/room.types';
+import { GameEngine } from '../modules/poker/game-engine';
+import { ConquianEngine } from '../modules/conquian/conquian-engine';
 import { sanitizeChatText } from '../modules/chat/chat.service';
 import { persistenceService } from '../database/persistence.service';
 import { decideBotAction } from '../modules/poker/bot-ai';
@@ -22,8 +25,21 @@ function broadcastRoomState(io: AppServer, room: Room): void {
   io.to(roomChannel(room.code)).emit('room:update', buildRoomStateDTO(room));
 }
 
+/** Broadcasts the appropriate per-player state DTO for whichever game mode this room is running. */
+function broadcastGameStateForMode(io: AppServer, room: Room): void {
+  if (room.config.gameMode === 'CONQUIAN') {
+    broadcastConquianState(io, room);
+  } else {
+    broadcastGameState(io, room);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Texas Hold'em
+// ---------------------------------------------------------------------------
+
 function broadcastGameState(io: AppServer, room: Room): void {
-  if (!room.engine) return;
+  if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
   for (const player of room.players) {
     if (!player.socketId) continue;
     const dto = buildGameStateDTO(room, player.id);
@@ -32,11 +48,12 @@ function broadcastGameState(io: AppServer, room: Room): void {
 }
 
 async function handleHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> {
-  if (!room.engine) return;
-  const showdown = room.engine.consumeShowdownResult();
+  if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
+  const engine = room.engine as GameEngine;
+  const showdown = engine.consumeShowdownResult();
   if (!showdown) return;
 
-  const state = room.engine.getState();
+  const state = engine.getState();
   await persistenceService.endHand(
     room.id,
     state.communityCards.map((c) => `${c.rank}${c.suit[0]}`).join(','),
@@ -47,12 +64,12 @@ async function handleHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> 
   io.to(roomChannel(room.code)).emit('game:showdown', showdown);
   io.to(roomChannel(room.code)).emit('game:hand-ended', { reason: showdown.revealedHands.length > 0 ? 'showdown' : 'fold' });
 
-  for (const eliminated of room.engine.consumeEliminated()) {
+  for (const eliminated of engine.consumeEliminated()) {
     await persistenceService.markPlayerEliminated(eliminated.id);
     io.to(roomChannel(room.code)).emit('player:eliminated', { playerId: eliminated.id, name: eliminated.name });
   }
 
-  if (room.engine.isGameOver()) {
+  if (engine.isGameOver()) {
     room.status = 'FINISHED';
     await persistenceService.updateRoomStatus(room.id, 'FINISHED');
     await persistenceService.endGame(room.id);
@@ -61,13 +78,13 @@ async function handleHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> 
 }
 
 /**
- * Validates and applies one action (from a human socket or a bot) through the
+ * Validates and applies one poker action (from a human socket or a bot) through the
  * same server-authoritative path, persists it, broadcasts the result, and -
  * if it's now a bot's turn - schedules that bot's move. Shared by the
  * `game:action` handler and the bot turn scheduler so both go through
  * identical validation/broadcast logic.
  */
-async function processAction(
+async function processPokerAction(
   io: AppServer,
   sessionToken: string,
   type: string,
@@ -76,16 +93,17 @@ async function processAction(
   const found = roomService.findBySession(sessionToken);
   if (!found) return { ok: false, error: 'Player not found' };
   const { room, player } = found;
-  const phaseBeforeAction = room.engine?.getState().currentPhase;
+  if (room.config.gameMode !== 'HOLDEM') return { ok: false, error: 'Not a Texas Hold\'em room' };
+  const phaseBeforeAction = (room.engine as GameEngine | null)?.getState().currentPhase;
 
-  const result = roomService.applyAction(sessionToken, type, amount);
+  const result = roomService.applyPokerAction(sessionToken, type, amount);
   if (!result.ok || !result.data) return { ok: false, error: result.error ?? 'Invalid action' };
 
   if (room.engine && phaseBeforeAction) {
     await persistenceService.recordAction(room.id, player.id, type as any, amount ?? 0, phaseBeforeAction);
   }
 
-  const enginePlayer = room.engine?.getState().players.find((p) => p.id === player.id);
+  const enginePlayer = room.engine?.getState().players.find((p: any) => p.id === player.id) as any;
   io.to(roomChannel(room.code)).emit('game:player-action', {
     playerId: player.id,
     playerName: player.name,
@@ -110,15 +128,18 @@ async function processAction(
  * Re-checks on each tick so a stale timer can never double-deal a street.
  */
 function scheduleRunoutIfNeeded(io: AppServer, room: Room): void {
-  if (!room.engine || !room.engine.isAllInRunout()) return;
-  const handNumberAtSchedule = room.engine.getState().handNumber;
+  if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
+  const engine = room.engine as GameEngine;
+  if (!engine.isAllInRunout()) return;
+  const handNumberAtSchedule = engine.getState().handNumber;
 
   setTimeout(async () => {
-    if (!room.engine) return;
-    const state = room.engine.getState();
+    if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
+    const liveEngine = room.engine as GameEngine;
+    const state = liveEngine.getState();
     if (!state.handInProgress || state.handNumber !== handNumberAtSchedule) return;
 
-    room.engine.continueRunout();
+    liveEngine.continueRunout();
     broadcastGameState(io, room);
     await handleHandOutcomeIfAny(io, room);
     scheduleRunoutIfNeeded(io, room);
@@ -132,8 +153,9 @@ function scheduleRunoutIfNeeded(io: AppServer, room: Room): void {
  * so a stale timer can never double-act or act out of turn.
  */
 function scheduleBotTurnIfNeeded(io: AppServer, room: Room): void {
-  if (!room.engine) return;
-  const state = room.engine.getState();
+  if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
+  const engine = room.engine as GameEngine;
+  const state = engine.getState();
   if (!state.handInProgress) return;
 
   const current = state.players.find((p) => p.seatIndex === state.currentPlayerPosition);
@@ -144,8 +166,9 @@ function scheduleBotTurnIfNeeded(io: AppServer, room: Room): void {
   const delay = BOT_MIN_DELAY_MS + Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS);
 
   setTimeout(async () => {
-    if (!room.engine) return;
-    const freshState = room.engine.getState();
+    if (!room.engine || room.config.gameMode !== 'HOLDEM') return;
+    const liveEngine = room.engine as GameEngine;
+    const freshState = liveEngine.getState();
     if (!freshState.handInProgress || freshState.handNumber !== handNumberAtSchedule) return;
 
     const freshBot = freshState.players.find((p) => p.id === botId);
@@ -153,24 +176,77 @@ function scheduleBotTurnIfNeeded(io: AppServer, room: Room): void {
     if (!freshBot || !stillBotsTurn) return;
 
     const decision = decideBotAction(freshState, freshBot);
-    const res = await processAction(io, freshBot.sessionToken, decision.type, decision.amount);
+    const res = await processPokerAction(io, freshBot.sessionToken, decision.type, decision.amount);
     if (!res.ok) {
       // Safety net: an unexpected validation mismatch should never stall the table.
-      await processAction(io, freshBot.sessionToken, 'FOLD');
+      await processPokerAction(io, freshBot.sessionToken, 'FOLD');
     }
   }, delay);
 }
+
+// ---------------------------------------------------------------------------
+// Conquian
+// ---------------------------------------------------------------------------
+
+function broadcastConquianState(io: AppServer, room: Room): void {
+  if (!room.engine || room.config.gameMode !== 'CONQUIAN') return;
+  for (const player of room.players) {
+    if (!player.socketId) continue;
+    const dto = buildConquianStateDTO(room, player.id);
+    if (dto) io.to(player.socketId).emit('conquian:state', dto);
+  }
+}
+
+async function handleConquianHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> {
+  if (!room.engine || room.config.gameMode !== 'CONQUIAN') return;
+  const engine = room.engine as ConquianEngine;
+  const handResult = engine.consumeHandResult();
+  if (!handResult) return;
+
+  io.to(roomChannel(room.code)).emit('conquian:hand-result', handResult);
+
+  for (const eliminated of engine.consumeEliminated()) {
+    await persistenceService.markPlayerEliminated(eliminated.id);
+    io.to(roomChannel(room.code)).emit('player:eliminated', { playerId: eliminated.id, name: eliminated.name });
+  }
+
+  if (engine.isGameOver()) {
+    room.status = 'FINISHED';
+    await persistenceService.updateRoomStatus(room.id, 'FINISHED');
+    await persistenceService.endGame(room.id);
+    broadcastRoomState(io, room);
+  }
+}
+
+async function afterConquianAction(io: AppServer, room: Room): Promise<void> {
+  broadcastConquianState(io, room);
+  await handleConquianHandOutcomeIfAny(io, room);
+}
+
+// ---------------------------------------------------------------------------
 
 export function registerSocketHandlers(io: AppServer): void {
   io.on('connection', (socket: AppSocket) => {
     socket.on('room:create', async (payload, callback) => {
       try {
-        const result = await roomService.createRoom(payload.playerName, {
-          maxPlayers: Number(payload.maxPlayers),
-          startingStack: Number(payload.startingStack),
-          smallBlind: Number(payload.smallBlind),
-          bigBlind: Number(payload.bigBlind),
-        });
+        const gameMode: GameMode = payload.gameMode === 'CONQUIAN' ? 'CONQUIAN' : 'HOLDEM';
+        const config: RoomConfig =
+          gameMode === 'CONQUIAN'
+            ? {
+                gameMode: 'CONQUIAN',
+                maxPlayers: Number(payload.maxPlayers),
+                startingStack: Number(payload.startingStack),
+                ante: Number(payload.ante),
+              }
+            : {
+                gameMode: 'HOLDEM',
+                maxPlayers: Number(payload.maxPlayers),
+                startingStack: Number(payload.startingStack),
+                smallBlind: Number(payload.smallBlind),
+                bigBlind: Number(payload.bigBlind),
+              };
+
+        const result = await roomService.createRoom(payload.playerName, config);
 
         if (!result.ok || !result.data) {
           callback({ ok: false, error: result.error ?? 'Could not create room' });
@@ -218,7 +294,7 @@ export function registerSocketHandlers(io: AppServer): void {
       callback({ ok: true });
       broadcastRoomState(io, room);
       if (room.status === 'PLAYING') {
-        broadcastGameState(io, room);
+        broadcastGameStateForMode(io, room);
       }
       if (wasDisconnected) {
         io.to(roomChannel(room.code)).emit('player:reconnected', { playerId: player.id, name: player.name });
@@ -271,22 +347,52 @@ export function registerSocketHandlers(io: AppServer): void {
       }
       callback({ ok: true });
       broadcastRoomState(io, result.data);
-      broadcastGameState(io, result.data);
+      broadcastGameStateForMode(io, result.data);
       scheduleBotTurnIfNeeded(io, result.data);
       scheduleRunoutIfNeeded(io, result.data);
     });
 
     socket.on('game:action', async (payload, callback) => {
-      const res = await processAction(io, payload.sessionToken, payload.type, payload.amount);
+      const res = await processPokerAction(io, payload.sessionToken, payload.type, payload.amount);
       callback(res);
     });
 
     socket.on('game:next-hand', async (payload) => {
       const result = await roomService.nextHand(payload.sessionToken);
       if (!result.ok || !result.data) return;
-      broadcastGameState(io, result.data);
+      broadcastGameStateForMode(io, result.data);
       scheduleBotTurnIfNeeded(io, result.data);
       scheduleRunoutIfNeeded(io, result.data);
+    });
+
+    socket.on('conquian:draw', async (payload, callback) => {
+      const result = roomService.conquianDraw(payload.sessionToken, payload.source);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Invalid action' });
+        return;
+      }
+      callback({ ok: true });
+      await afterConquianAction(io, result.data);
+    });
+
+    socket.on('conquian:meld', async (payload, callback) => {
+      const result = roomService.conquianMeld(payload.sessionToken, payload.cards, payload.targetMeldId);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Invalid action' });
+        return;
+      }
+      callback({ ok: true });
+      await afterConquianAction(io, result.data);
+    });
+
+    socket.on('conquian:discard', async (payload, callback) => {
+      const result = roomService.conquianDiscard(payload.sessionToken, payload.card);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Invalid action' });
+        return;
+      }
+      callback({ ok: true });
+      await afterConquianAction(io, result.data);
     });
 
     socket.on('chat:message', (payload) => {

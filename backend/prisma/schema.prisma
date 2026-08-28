@@ -13,6 +13,11 @@ enum RoomStatus {
   FINISHED
 }
 
+enum GameMode {
+  HOLDEM
+  CONQUIAN
+}
+
 enum GamePhase {
   PRE_FLOP
   FLOP
@@ -34,10 +39,12 @@ enum ActionType {
 model Room {
   id           String     @id @default(uuid())
   code         String     @unique
+  gameMode     GameMode   @default(HOLDEM)
   maxPlayers   Int
   startingStack Int
-  smallBlind   Int
-  bigBlind     Int
+  smallBlind   Int?
+  bigBlind     Int?
+  ante         Int?
   status       RoomStatus @default(WAITING)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

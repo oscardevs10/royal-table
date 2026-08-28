@@ -13,7 +13,11 @@
     @if (room.status === 'WAITING') {
       <app-lobby />
     } @else if (room.status === 'PLAYING') {
-      <app-table />
+      @if (room.gameMode === 'CONQUIAN') {
+        <app-conquian-table />
+      } @else {
+        <app-table />
+      }
     } @else {
       <div class="status-screen">
         <h2>Partida finalizada</h2>
@@ -25,12 +29,22 @@
       </div>
     }
 
-    <app-showdown-overlay
-      [result]="store.showdown()"
-      [isHost]="store.isHost()"
-      [isGameOver]="room.status === 'FINISHED'"
-      (nextHand)="nextHand()"
-      (dismiss)="dismissShowdown()"
-    />
+    @if (room.gameMode === 'CONQUIAN') {
+      <app-conquian-hand-result-overlay
+        [result]="store.conquianHandResult()"
+        [isHost]="store.isHost()"
+        [isGameOver]="room.status === 'FINISHED'"
+        (nextHand)="nextHand()"
+        (dismiss)="dismissConquianHandResult()"
+      />
+    } @else {
+      <app-showdown-overlay
+        [result]="store.showdown()"
+        [isHost]="store.isHost()"
+        [isGameOver]="room.status === 'FINISHED'"
+        (nextHand)="nextHand()"
+        (dismiss)="dismissShowdown()"
+      />
+    }
   }
 }

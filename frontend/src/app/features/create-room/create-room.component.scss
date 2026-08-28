@@ -42,6 +42,36 @@
   gap: 1rem;
 }
 
+.mode-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+
+.mode-btn.active {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(212, 175, 106, 0.12);
+}
+
+.mode-note {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: -0.5rem 0 1.1rem;
+  line-height: 1.4;
+}
+
 .preset-row {
   display: flex;
   gap: 0.5rem;
