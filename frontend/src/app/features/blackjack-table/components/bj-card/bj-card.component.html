@@ -1,0 +1,10 @@
+<div class="flipper" [class.revealed]="!!card" [class]="size">
+  <div class="face back">
+    <app-playing-card [card]="null" [faceDown]="true" [size]="size" [animated]="false" />
+  </div>
+  <div class="face front">
+    @if (card) {
+      <app-playing-card [card]="card" [size]="size" [animated]="false" />
+    }
+  </div>
+</div>

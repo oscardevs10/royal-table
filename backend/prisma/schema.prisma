@@ -15,7 +15,7 @@ enum RoomStatus {
 
 enum GameMode {
   HOLDEM
-  CONQUIAN
+  BLACKJACK
 }
 
 enum GamePhase {
@@ -44,7 +44,9 @@ model Room {
   startingStack Int
   smallBlind   Int?
   bigBlind     Int?
-  ante         Int?
+  minBet       Int?
+  maxBet       Int?
+  deckCount    Int?
   status       RoomStatus @default(WAITING)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

@@ -2,10 +2,10 @@ import { Server, Socket } from 'socket.io';
 import { ClientToServerEvents, ServerToClientEvents } from '../types/socket-events.types';
 import { roomService } from '../modules/rooms/room.service';
 import { buildGameStateDTO, buildRoomStateDTO } from '../modules/rooms/dto-builder';
-import { buildConquianStateDTO } from '../modules/conquian/conquian-dto-builder';
+import { buildBlackjackStateDTO } from '../modules/blackjack/blackjack-dto-builder';
 import { Room, RoomConfig, GameMode } from '../modules/rooms/room.types';
 import { GameEngine } from '../modules/poker/game-engine';
-import { ConquianEngine } from '../modules/conquian/conquian-engine';
+import { BlackjackEngine } from '../modules/blackjack/blackjack-engine';
 import { sanitizeChatText } from '../modules/chat/chat.service';
 import { persistenceService } from '../database/persistence.service';
 import { decideBotAction } from '../modules/poker/bot-ai';
@@ -16,6 +16,10 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 const BOT_MIN_DELAY_MS = 700;
 const BOT_MAX_DELAY_MS = 1500;
 const RUNOUT_STEP_DELAY_MS = 1700;
+const DEALER_STEP_DELAY_MS = 850;
+const NEXT_ROUND_DELAY_MS = 4500;
+/** How long a disconnected player's hand waits (e.g. for a page refresh) before it's stood for them. */
+const AWAY_AUTO_STAND_MS = 15000;
 
 function roomChannel(code: string): string {
   return `room:${code}`;
@@ -27,8 +31,8 @@ function broadcastRoomState(io: AppServer, room: Room): void {
 
 /** Broadcasts the appropriate per-player state DTO for whichever game mode this room is running. */
 function broadcastGameStateForMode(io: AppServer, room: Room): void {
-  if (room.config.gameMode === 'CONQUIAN') {
-    broadcastConquianState(io, room);
+  if (room.config.gameMode === 'BLACKJACK') {
+    broadcastBlackjackState(io, room);
   } else {
     broadcastGameState(io, room);
   }
@@ -185,25 +189,45 @@ function scheduleBotTurnIfNeeded(io: AppServer, room: Room): void {
 }
 
 // ---------------------------------------------------------------------------
-// Conquian
+// Blackjack
 // ---------------------------------------------------------------------------
 
-function broadcastConquianState(io: AppServer, room: Room): void {
-  if (!room.engine || room.config.gameMode !== 'CONQUIAN') return;
+/** At most one pending dealer-step / next-round timer per room, so overlapping triggers can't double-step the dealer. */
+const blackjackTimers = new WeakMap<Room, NodeJS.Timeout>();
+
+function broadcastBlackjackState(io: AppServer, room: Room): void {
+  if (!(room.engine instanceof BlackjackEngine)) return;
   for (const player of room.players) {
     if (!player.socketId) continue;
-    const dto = buildConquianStateDTO(room, player.id);
-    if (dto) io.to(player.socketId).emit('conquian:state', dto);
+    const dto = buildBlackjackStateDTO(room, player.id);
+    if (dto) io.to(player.socketId).emit('blackjack:state', dto);
   }
 }
 
-async function handleConquianHandOutcomeIfAny(io: AppServer, room: Room): Promise<void> {
-  if (!room.engine || room.config.gameMode !== 'CONQUIAN') return;
-  const engine = room.engine as ConquianEngine;
-  const handResult = engine.consumeHandResult();
-  if (!handResult) return;
+/**
+ * Single follow-up for anything that changed a blackjack table (a bet, an action, a player
+ * leaving/dropping, a dealer step): broadcasts the new state, records a settled round, and
+ * schedules whatever the table does next on its own.
+ */
+async function afterBlackjackChange(io: AppServer, room: Room): Promise<void> {
+  if (!(room.engine instanceof BlackjackEngine)) return;
+  roomService.syncAfterAction(room);
+  broadcastBlackjackState(io, room);
+  await handleBlackjackRoundOutcomeIfAny(io, room);
+  scheduleBlackjackProgress(io, room);
+  scheduleAwayAutoStandIfNeeded(io, room);
+}
 
-  io.to(roomChannel(room.code)).emit('conquian:hand-result', handResult);
+async function handleBlackjackRoundOutcomeIfAny(io: AppServer, room: Room): Promise<void> {
+  const engine = room.engine as BlackjackEngine;
+  const result = engine.consumeRoundResult();
+  if (!result) return;
+
+  const totalBet = result.players.reduce((sum, p) => sum + p.totalBet, 0);
+  const summary =
+    result.players.map((p) => `${p.playerName}:${p.net >= 0 ? '+' : ''}${p.net}`).join(', ') +
+    ` | dealer ${result.dealerBlackjack ? 'BJ' : result.dealerTotal}`;
+  await persistenceService.recordCompletedHand(room.id, result.roundNumber, totalBet, summary);
 
   for (const eliminated of engine.consumeEliminated()) {
     await persistenceService.markPlayerEliminated(eliminated.id);
@@ -218,9 +242,47 @@ async function handleConquianHandOutcomeIfAny(io: AppServer, room: Room): Promis
   }
 }
 
-async function afterConquianAction(io: AppServer, room: Room): Promise<void> {
-  broadcastConquianState(io, room);
-  await handleConquianHandOutcomeIfAny(io, room);
+/**
+ * Paces the parts of a round nobody has to click for: the dealer reveals the hole card and
+ * draws one card at a time (so the table can watch), and once a round is settled the results
+ * stay up for a few seconds before betting reopens. Re-checks the round/phase when the timer
+ * fires so a stale timer can never step the wrong round.
+ */
+function scheduleBlackjackProgress(io: AppServer, room: Room): void {
+  if (blackjackTimers.has(room) || room.status !== 'PLAYING') return;
+  const engine = room.engine as BlackjackEngine;
+  const { phase, roundNumber } = engine.getState();
+  if (phase !== 'DEALER_TURN' && phase !== 'ROUND_OVER') return;
+
+  const timer = setTimeout(async () => {
+    blackjackTimers.delete(room);
+    if (room.engine !== engine || room.status !== 'PLAYING') return;
+    const live = engine.getState();
+    if (live.roundNumber !== roundNumber || live.phase !== phase) return;
+
+    if (phase === 'DEALER_TURN') engine.dealerStep();
+    else engine.startBetting();
+    await afterBlackjackChange(io, room);
+  }, phase === 'DEALER_TURN' ? DEALER_STEP_DELAY_MS : NEXT_ROUND_DELAY_MS);
+  // The HTTP server keeps the process alive; table timers alone never should (clean test/shutdown exits).
+  timer.unref();
+
+  blackjackTimers.set(room, timer);
+}
+
+/** If the hand whose turn it is belongs to someone who dropped, stand it for them after a grace period. */
+function scheduleAwayAutoStandIfNeeded(io: AppServer, room: Room): void {
+  const engine = room.engine as BlackjackEngine;
+  const hand = engine.getActiveHand();
+  if (!hand || engine.getPlayer(hand.playerId)?.connected !== false) return;
+
+  const { id: handId, playerId } = hand;
+  setTimeout(async () => {
+    if (room.engine !== engine) return;
+    const stillAway = engine.getPlayer(playerId)?.connected === false;
+    if (!stillAway || !engine.autoStandActiveHand(handId)) return;
+    await afterBlackjackChange(io, room);
+  }, AWAY_AUTO_STAND_MS).unref();
 }
 
 // ---------------------------------------------------------------------------
@@ -229,14 +291,16 @@ export function registerSocketHandlers(io: AppServer): void {
   io.on('connection', (socket: AppSocket) => {
     socket.on('room:create', async (payload, callback) => {
       try {
-        const gameMode: GameMode = payload.gameMode === 'CONQUIAN' ? 'CONQUIAN' : 'HOLDEM';
+        const gameMode: GameMode = payload.gameMode === 'BLACKJACK' ? 'BLACKJACK' : 'HOLDEM';
         const config: RoomConfig =
-          gameMode === 'CONQUIAN'
+          gameMode === 'BLACKJACK'
             ? {
-                gameMode: 'CONQUIAN',
+                gameMode: 'BLACKJACK',
                 maxPlayers: Number(payload.maxPlayers),
                 startingStack: Number(payload.startingStack),
-                ante: Number(payload.ante),
+                minBet: Number(payload.minBet),
+                maxBet: Number(payload.maxBet),
+                deckCount: Number(payload.deckCount),
               }
             : {
                 gameMode: 'HOLDEM',
@@ -277,6 +341,8 @@ export function registerSocketHandlers(io: AppServer): void {
         socket.join(roomChannel(room.code));
         callback({ ok: true, sessionToken: player.sessionToken, playerId: player.id });
         broadcastRoomState(io, room);
+        // Joined a blackjack table that's already dealing: send everyone the updated table.
+        if (room.status === 'PLAYING') broadcastGameStateForMode(io, room);
       } catch (err) {
         console.error('room:join failed', err);
         callback({ ok: false, error: 'Unexpected server error' });
@@ -301,7 +367,7 @@ export function registerSocketHandlers(io: AppServer): void {
       }
     });
 
-    socket.on('room:leave', (payload) => {
+    socket.on('room:leave', async (payload) => {
       const found = roomService.leaveRoom(payload.sessionToken);
       if (!found) return;
       const { room, player } = found;
@@ -309,7 +375,13 @@ export function registerSocketHandlers(io: AppServer): void {
       if (room.players.length > 0) {
         broadcastRoomState(io, room);
         if (room.status === 'PLAYING') {
-          io.to(roomChannel(room.code)).emit('player:disconnected', { playerId: player.id, name: player.name });
+          if (room.config.gameMode === 'BLACKJACK') {
+            io.to(roomChannel(room.code)).emit('player:left', { playerId: player.id, name: player.name });
+            // Their leaving can complete the bets (deal now) or end the players' turns (dealer plays).
+            await afterBlackjackChange(io, room);
+          } else {
+            io.to(roomChannel(room.code)).emit('player:disconnected', { playerId: player.id, name: player.name });
+          }
         }
       }
     });
@@ -365,34 +437,34 @@ export function registerSocketHandlers(io: AppServer): void {
       scheduleRunoutIfNeeded(io, result.data);
     });
 
-    socket.on('conquian:draw', async (payload, callback) => {
-      const result = roomService.conquianDraw(payload.sessionToken, payload.source);
+    socket.on('blackjack:bet', async (payload, callback) => {
+      const result = roomService.blackjackBet(payload.sessionToken, Number(payload.amount));
       if (!result.ok || !result.data) {
-        callback({ ok: false, error: result.error ?? 'Invalid action' });
+        callback({ ok: false, error: result.error ?? 'Invalid bet' });
         return;
       }
       callback({ ok: true });
-      await afterConquianAction(io, result.data);
+      await afterBlackjackChange(io, result.data);
     });
 
-    socket.on('conquian:meld', async (payload, callback) => {
-      const result = roomService.conquianMeld(payload.sessionToken, payload.cards, payload.targetMeldId);
+    socket.on('blackjack:deal', async (payload, callback) => {
+      const result = roomService.blackjackDeal(payload.sessionToken);
       if (!result.ok || !result.data) {
-        callback({ ok: false, error: result.error ?? 'Invalid action' });
+        callback({ ok: false, error: result.error ?? 'Could not deal' });
         return;
       }
       callback({ ok: true });
-      await afterConquianAction(io, result.data);
+      await afterBlackjackChange(io, result.data);
     });
 
-    socket.on('conquian:discard', async (payload, callback) => {
-      const result = roomService.conquianDiscard(payload.sessionToken, payload.card);
+    socket.on('blackjack:action', async (payload, callback) => {
+      const result = roomService.blackjackAction(payload.sessionToken, payload.action);
       if (!result.ok || !result.data) {
         callback({ ok: false, error: result.error ?? 'Invalid action' });
         return;
       }
       callback({ ok: true });
-      await afterConquianAction(io, result.data);
+      await afterBlackjackChange(io, result.data);
     });
 
     socket.on('chat:message', (payload) => {
@@ -409,13 +481,15 @@ export function registerSocketHandlers(io: AppServer): void {
       });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       const found = roomService.markDisconnected(socket.id);
       if (!found) return;
       const { room, player } = found;
       broadcastRoomState(io, room);
       if (room.status === 'PLAYING') {
         io.to(roomChannel(room.code)).emit('player:disconnected', { playerId: player.id, name: player.name });
+        // Dropping can complete the bets, or leave the table waiting on this player's hand (grace timer).
+        if (room.config.gameMode === 'BLACKJACK') await afterBlackjackChange(io, room);
       }
     });
   });

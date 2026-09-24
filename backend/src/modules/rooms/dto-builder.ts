@@ -24,7 +24,9 @@ export function buildRoomStateDTO(room: Room): RoomStateDTO {
     startingStack: room.config.startingStack,
     smallBlind: room.config.gameMode === 'HOLDEM' ? room.config.smallBlind : undefined,
     bigBlind: room.config.gameMode === 'HOLDEM' ? room.config.bigBlind : undefined,
-    ante: room.config.gameMode === 'CONQUIAN' ? room.config.ante : undefined,
+    minBet: room.config.gameMode === 'BLACKJACK' ? room.config.minBet : undefined,
+    maxBet: room.config.gameMode === 'BLACKJACK' ? room.config.maxBet : undefined,
+    deckCount: room.config.gameMode === 'BLACKJACK' ? room.config.deckCount : undefined,
     status: room.status,
     players,
   };

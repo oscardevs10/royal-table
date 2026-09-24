@@ -3,6 +3,7 @@
   [class]="size"
   [class.face-down]="faceDown || !displayCard()"
   [class.red]="isRed()"
+  [class.no-anim]="!animated"
   [style.animation-delay.ms]="dealDelayMs"
 >
   @if (!faceDown && displayCard(); as c) {

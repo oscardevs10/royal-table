@@ -13,31 +13,25 @@
     @if (room.status === 'WAITING') {
       <app-lobby />
     } @else if (room.status === 'PLAYING') {
-      @if (room.gameMode === 'CONQUIAN') {
-        <app-conquian-table />
+      @if (room.gameMode === 'BLACKJACK') {
+        <app-blackjack-table />
       } @else {
         <app-table />
       }
     } @else {
       <div class="status-screen">
         <h2>Partida finalizada</h2>
-        @if (overallWinnerName; as name) {
-          <p class="winner-line">🏆 {{ name }} se lleva todas las fichas</p>
+        @if (room.gameMode === 'BLACKJACK') {
+          <p class="winner-line">🂡 La casa gana: nadie en la mesa puede cubrir la apuesta mínima</p>
+        } @else if (overallWinnerName) {
+          <p class="winner-line">🏆 {{ overallWinnerName }} se lleva todas las fichas</p>
         }
         <p>Gracias por jugar en Royal Table.</p>
         <button class="btn btn-gold" (click)="backToLanding()">Volver al inicio</button>
       </div>
     }
 
-    @if (room.gameMode === 'CONQUIAN') {
-      <app-conquian-hand-result-overlay
-        [result]="store.conquianHandResult()"
-        [isHost]="store.isHost()"
-        [isGameOver]="room.status === 'FINISHED'"
-        (nextHand)="nextHand()"
-        (dismiss)="dismissConquianHandResult()"
-      />
-    } @else {
+    @if (room.gameMode === 'HOLDEM') {
       <app-showdown-overlay
         [result]="store.showdown()"
         [isHost]="store.isHost()"

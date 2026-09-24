@@ -1,0 +1,17 @@
+<div
+  class="stack"
+  [class.large]="large"
+  [class.won]="won"
+  [class.lost]="outcome === 'LOSE'"
+  [class.push]="outcome === 'PUSH'"
+  [class.blackjack]="outcome === 'BLACKJACK'"
+>
+  @if (doubled) {
+    <span class="chip under"></span>
+  }
+  <span class="chip stake">{{ amount | number }}</span>
+  @if (won) {
+    <span class="chip payout">{{ winnings | number }}</span>
+    <span class="float-amount">+{{ winnings | number }}</span>
+  }
+</div>
