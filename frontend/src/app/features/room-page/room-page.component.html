@@ -27,7 +27,19 @@
           <p class="winner-line">🏆 {{ overallWinnerName }} se lleva todas las fichas</p>
         }
         <p>Gracias por jugar en Royal Table.</p>
-        <button class="btn btn-gold" (click)="backToLanding()">Volver al inicio</button>
+        <div class="end-actions">
+          @if (store.isHost()) {
+            <button class="btn btn-gold" [disabled]="restarting()" (click)="playAgain()">
+              {{ restarting() ? 'Preparando la mesa...' : 'Jugar de nuevo' }}
+            </button>
+          } @else {
+            <p class="waiting-note">Esperando a que el anfitrión decida si juegan de nuevo...</p>
+          }
+          <button class="btn btn-ghost" (click)="backToLanding()">Volver al inicio</button>
+        </div>
+        @if (store.isHost() && !(room.gameMode === 'BLACKJACK' && room.maxPlayers === 1)) {
+          <p class="restart-hint">Misma sala y mismo código ({{ room.code }}): todos vuelven a la lobby con el stack inicial.</p>
+        }
       </div>
     }
 

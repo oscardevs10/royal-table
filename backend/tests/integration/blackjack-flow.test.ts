@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import { createApp } from '../../src/app';
 import { registerSocketHandlers } from '../../src/socket/socket-handler';
+import { roomService } from '../../src/modules/rooms/room.service';
 
 let httpServer: HttpServer;
 let io: Server;
@@ -131,6 +132,49 @@ describe('Realtime blackjack socket flow', () => {
     host.close();
     friend.close();
   }, 25000);
+
+  it('"play again" reopens the same room with the same players back at the starting stack', async () => {
+    const host = connect();
+    const friend = connect();
+    await Promise.all([waitFor(host, 'connect'), waitFor(friend, 'connect')]);
+    const hostStates: any[] = [];
+    host.on('blackjack:state', (s) => hostStates.push(s));
+
+    const createRes: any = await emitAck(host, 'room:create', { ...BLACKJACK_TABLE, playerName: 'Host', maxPlayers: 3, deckCount: 2 });
+    const joinRes: any = await emitAck(friend, 'room:join', { roomCode: createRes.roomCode, playerName: 'Friend' });
+    await emitAck(host, 'game:start', { sessionToken: createRes.sessionToken });
+
+    // Can't restart a game that's still going.
+    expect((await emitAck<any>(host, 'room:restart', { sessionToken: createRes.sessionToken })).ok).toBe(false);
+
+    // Simulate the house cleaning everyone out.
+    const room = roomService.findByCode(createRes.roomCode)!;
+    for (const p of room.players) {
+      p.chips = 0;
+      p.eliminated = true;
+    }
+    room.status = 'FINISHED';
+
+    expect((await emitAck<any>(friend, 'room:restart', { sessionToken: joinRes.sessionToken })).ok).toBe(false);
+
+    const lobbyUpdate = waitFor<any>(friend, 'room:update');
+    expect((await emitAck<any>(host, 'room:restart', { sessionToken: createRes.sessionToken })).ok).toBe(true);
+    const lobby = await lobbyUpdate;
+    expect(lobby).toMatchObject({ code: createRes.roomCode, status: 'WAITING' });
+    expect(lobby.players.map((p: any) => p.name)).toEqual(['Host', 'Friend']);
+
+    hostStates.length = 0;
+    expect((await emitAck<any>(host, 'game:start', { sessionToken: createRes.sessionToken })).ok).toBe(true);
+    const fresh = await waitForState(host, hostStates, (s) => s.phase === 'BETTING');
+    expect(fresh.roundNumber).toBe(0);
+    expect(fresh.players.map((p: any) => [p.name, p.chips, p.status])).toEqual([
+      ['Host', 1000, 'ACTIVE'],
+      ['Friend', 1000, 'ACTIVE'],
+    ]);
+
+    host.close();
+    friend.close();
+  }, 20000);
 
   it('rejects a shoe too small for the table size', async () => {
     const socket = connect();

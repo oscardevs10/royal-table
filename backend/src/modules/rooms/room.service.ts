@@ -225,6 +225,35 @@ class RoomService {
     return { ok: true, data: room };
   }
 
+  /**
+   * "Play again": puts a finished room back in the lobby with the same code and the same
+   * players (bots included), everyone back at the starting stack. The host can then change
+   * who's at the table (invite, add/remove bots) before starting the next game.
+   */
+  async restartRoom(sessionToken: string): Promise<ServiceResult<Room>> {
+    const found = this.findBySession(sessionToken);
+    if (!found) return { ok: false, error: 'Player not found' };
+    const { room, player } = found;
+    if (!player.isHost) return { ok: false, error: 'Only the host can restart the game' };
+    if (room.status !== 'FINISHED') return { ok: false, error: 'The game is not over yet' };
+
+    room.status = 'WAITING';
+    room.engine = null;
+    room.players.forEach((p, idx) => {
+      p.seatIndex = idx;
+      p.chips = room.config.startingStack;
+      p.eliminated = false;
+      p.ready = p.isHost || p.isBot;
+    });
+
+    await persistenceService.updateRoomStatus(room.id, 'WAITING');
+    for (const p of room.players) {
+      if (!p.isBot) await persistenceService.resetPlayer(p.id, p.chips);
+    }
+
+    return { ok: true, data: room };
+  }
+
   applyPokerAction(sessionToken: string, type: string, amount?: number): ServiceResult<Room> {
     const found = this.findBySession(sessionToken);
     if (!found) return { ok: false, error: 'Player not found' };

@@ -55,7 +55,15 @@ export class GameStoreService {
     if (this.listenersRegistered) return;
     this.listenersRegistered = true;
 
-    this.socket.on<RoomStateDTO>('room:update', (state) => this.roomState.set(state));
+    this.socket.on<RoomStateDTO>('room:update', (state) => {
+      // Back in the lobby ("play again"): drop the finished game's table so nothing stale shows up.
+      if (state.status === 'WAITING' && this.roomState()?.status !== 'WAITING') {
+        this.gameState.set(null);
+        this.showdown.set(null);
+        this.blackjackState.set(null);
+      }
+      this.roomState.set(state);
+    });
 
     this.socket.on<GameStateDTO>('game:state', (state) => {
       const previous = this.gameState();
@@ -221,6 +229,15 @@ export class GameStoreService {
     if (!session) return { ok: false, error: 'No hay sesión activa' };
     const res = await this.socket.emitWithAck<{ ok: boolean; error?: string }>('game:start', { sessionToken: session.sessionToken });
     if (!res.ok) this.errorMessage.set(res.error ?? 'No se pudo iniciar la partida');
+    return res;
+  }
+
+  /** Host only, after the game ends: reopens the same room (same code and players) with fresh stacks. */
+  async restartRoom(): Promise<{ ok: boolean; error?: string }> {
+    const session = this.session.session();
+    if (!session) return { ok: false, error: 'No hay sesión activa' };
+    const res = await this.socket.emitWithAck<{ ok: boolean; error?: string }>('room:restart', { sessionToken: session.sessionToken });
+    if (!res.ok) this.errorMessage.set(res.error ?? 'No se pudo reiniciar la partida');
     return res;
   }
 
