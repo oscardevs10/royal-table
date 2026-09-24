@@ -1,0 +1,242 @@
+@if (state(); as state) {
+  <div class="table-page">
+    <header class="table-header">
+      <div class="room-info">
+        <span class="room-code-tag">{{ state.roomCode }}</span>
+        <span class="tag">{{ phaseLabels[state.phase] }}</span>
+        @if (state.roundNumber > 0) {
+          <span class="tag">Ronda #{{ state.roundNumber }}</span>
+        }
+        <span class="tag">{{ state.minBet | number }} - {{ state.maxBet | number }}</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" (click)="audio.toggleMute()" [title]="audio.muted() ? 'Activar sonido' : 'Silenciar'">
+          {{ audio.muted() ? '🔇' : '🔊' }}
+        </button>
+        <button class="icon-btn" (click)="chatOpen.set(!chatOpen())" title="Chat">💬</button>
+        <button class="icon-btn exit" (click)="exitTable()" title="Salir">✕</button>
+      </div>
+    </header>
+
+    <div class="table-arena">
+      <div class="bj-table" #tableEl>
+        <div class="discard-tray" #discardEl title="Descarte">
+          <span class="tray-label">Descarte</span>
+        </div>
+
+        <div class="shoe" [title]="state.shoe.remaining + ' de ' + state.shoe.totalCards + ' cartas en el zapato'">
+          <div class="shoe-box" #shoeEl [class.shuffling]="shuffling()">
+            <span class="shoe-card c1"></span>
+            <span class="shoe-card c2"></span>
+            <span class="shoe-card c3"></span>
+          </div>
+          <div class="shoe-label">
+            Zapato · {{ state.shoe.deckCount }} × 52
+            @if (state.shoe.justReshuffled) {
+              <span class="reshuffled">barajado</span>
+            }
+          </div>
+          <div class="shoe-gauge">
+            <div class="shoe-dealt" [style.width.%]="shoeGauge().dealtPct"></div>
+            <div class="shoe-cut" [style.left.%]="shoeGauge().cutPct" title="Carta de corte"></div>
+          </div>
+          <div class="shoe-count">{{ state.shoe.remaining }} cartas</div>
+        </div>
+
+        <div class="dealer-area">
+          <span class="dealer-label">DEALER</span>
+          <div class="cards-row">
+            @for (slot of dealerCards(); track slot.key) {
+              <app-bj-card [card]="slot.card" size="lg" [dealMode]="slot.mode" [dealDelayMs]="slot.delay" [origin]="shoeOrigin" />
+            }
+          </div>
+          @if (state.dealer.total !== null && !dealing()) {
+            @for (t of [state.dealer.total]; track t) {
+              <span class="total-pill bump" [class.bust]="t > 21" [class.bj]="state.dealer.isBlackjack">
+                {{ state.dealer.isBlackjack ? 'Blackjack' : t > 21 ? t + ' · Se pasó' : t }}
+              </span>
+            }
+          }
+        </div>
+
+        <div class="felt-print">
+          <span class="print-main">BLACKJACK PAGA 3 A 2</span>
+          <span class="print-sub">El dealer se planta en 17 · Dobla con cualquier par de cartas</span>
+        </div>
+
+        <div class="seats-row">
+          @for (seat of seats(); track seat.player.id) {
+            <div
+              class="seat"
+              [class.is-me]="seat.isMe"
+              [class.out]="seat.player.status === 'OUT'"
+              [style.transform]="'translateY(' + seat.lift + 'px)'"
+            >
+              <div class="seat-hands">
+                @for (view of seat.hands; track view.hand.id) {
+                  <div
+                    class="hand"
+                    [class.active]="view.hand.isActive && !dealing()"
+                    [class.bust]="view.hand.status === 'BUST' && !dealing()"
+                    [class.natural]="view.hand.status === 'BLACKJACK' && !dealing()"
+                  >
+                    <div class="cards-row fanned">
+                      @for (c of view.cards; track c.key) {
+                        <app-bj-card [card]="c.card" size="md" [dealMode]="c.mode" [dealDelayMs]="c.delay" [origin]="shoeOrigin" />
+                      }
+                    </div>
+                    <div class="hand-meta">
+                      @if (!dealing()) {
+                        @for (t of [view.hand.total]; track t) {
+                          <span class="total-pill small bump" [class.bust]="t > 21">{{ handTotalLabel(view.hand) }}</span>
+                        }
+                      }
+                      <app-bj-bet
+                        [amount]="view.hand.bet"
+                        [doubled]="view.hand.doubled"
+                        [outcome]="dealing() ? null : view.hand.outcome"
+                        [payout]="view.hand.payout"
+                      />
+                    </div>
+                    @if (!dealing() && handBadge(view.hand); as badge) {
+                      <span class="hand-badge" [class]="badge.tone">{{ badge.text }}</span>
+                    }
+                  </div>
+                } @empty {
+                  @if (state.phase === 'BETTING' && seat.player.pendingBet > 0) {
+                    <div class="pending-bet">
+                      @for (amount of [seat.player.pendingBet]; track amount) {
+                        <app-bj-bet [amount]="amount" [large]="true" />
+                      }
+                    </div>
+                  } @else {
+                    <div class="empty-spot">{{ state.phase === 'BETTING' ? 'Apostando…' : 'Sin apuesta' }}</div>
+                  }
+                }
+              </div>
+
+              <div class="seat-plate">
+                <span class="seat-name">
+                  {{ seat.isMe ? 'Tú' : seat.player.name }}
+                  @if (seat.player.isHost) {
+                    <span class="host-dot" title="Anfitrión">★</span>
+                  }
+                  @if (!seat.player.connected) {
+                    <span class="away" title="Desconectado">⚠</span>
+                  }
+                </span>
+                <span class="seat-chips">{{ seat.player.chips | number }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      @switch (state.phase) {
+        @case ('BETTING') {
+          @if (state.canPlaceBet) {
+            @if (me()?.pendingBet; as placed) {
+              <div class="status-line">
+                Apostaste <strong>{{ placed | number }}</strong>
+                @if (waitingOnBets().length > 0) {
+                  · esperando a {{ waitingOnBets().join(', ') }}
+                }
+              </div>
+              <div class="action-row">
+                <button class="btn btn-ghost" [disabled]="busy()" (click)="withdrawBet()">Retirar apuesta</button>
+                @if (state.canForceDeal && waitingOnBets().length > 0) {
+                  <button class="btn btn-gold" [disabled]="busy()" (click)="forceDeal()">Repartir ya</button>
+                }
+              </div>
+            } @else {
+              <div class="chip-rack">
+                @for (value of chipValues(); track value) {
+                  <button class="chip" [attr.data-value]="value" [disabled]="draftBet() + value > betCeiling()" (click)="addChip(value)">
+                    {{ value | number }}
+                  </button>
+                }
+              </div>
+              <div class="action-row">
+                <button class="btn btn-ghost" [disabled]="draftBet() === 0" (click)="clearDraft()">Limpiar</button>
+                <button class="btn btn-ghost" (click)="maxDraft()">Máx</button>
+                <button class="btn btn-gold" [disabled]="!draftValid() || busy()" (click)="confirmBet()">
+                  Apostar
+                  @for (d of [draftBet()]; track d) {
+                    <span class="bump-num">{{ d | number }}</span>
+                  }
+                </button>
+              </div>
+              @if (state.canForceDeal) {
+                <button class="link-btn" [disabled]="busy()" (click)="forceDeal()">Repartir sin mi apuesta</button>
+              }
+            }
+          } @else {
+            <div class="status-line">No te alcanza para la apuesta mínima: puedes quedarte mirando la mesa.</div>
+          }
+        }
+
+        @case ('PLAYER_TURNS') {
+          @if (dealing() && !activeHand()?.fromSplit && (activeHand()?.cards?.length ?? 0) <= 2) {
+            <div class="status-line">Repartiendo<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+          } @else if (isMyTurn()) {
+            <div class="turn-hint">
+              Tu turno{{ myHands().length > 1 ? ' · mano ' + (myHands().indexOf(activeHand()!) + 1) + ' de ' + myHands().length : '' }}
+              · {{ handTotalLabel(activeHand()!) }}
+            </div>
+            <div class="action-row">
+              @for (action of actions; track action) {
+                <button
+                  class="btn"
+                  [class.btn-gold]="action === 'HIT' || action === 'STAND'"
+                  [class.btn-ghost]="action === 'DOUBLE' || action === 'SPLIT'"
+                  [disabled]="!canAct(action)"
+                  (click)="act(action)"
+                >
+                  {{ actionLabels[action] }}
+                </button>
+              }
+            </div>
+          } @else if (myHands().length === 0) {
+            <div class="status-line">Juegas desde la siguiente ronda · turno de {{ activePlayerName() }}</div>
+          } @else {
+            <div class="status-line">Turno de {{ activePlayerName() }}</div>
+          }
+        }
+
+        @case ('DEALER_TURN') {
+          <div class="status-line">El dealer está jugando<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+        }
+
+        @case ('ROUND_OVER') {
+          @if (dealing()) {
+            <div class="status-line">Repartiendo<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+          }
+          @if (!dealing() && myResult(); as result) {
+            <div class="result-banner" [class.win]="result.net > 0" [class.lose]="result.net < 0" [class.natural]="myBlackjack()">
+              @if (myBlackjack() && result.net > 0) {
+                ¡Blackjack! +{{ result.net | number }}
+              } @else if (result.net > 0) {
+                Ganaste +{{ result.net | number }}
+              } @else if (result.net < 0) {
+                Perdiste {{ -result.net | number }}
+              } @else {
+                Empate · recuperas tu apuesta
+              }
+            </div>
+          }
+          <div class="status-line">Nueva ronda en unos segundos…</div>
+        }
+      }
+    </div>
+
+    <app-chat-panel
+      [messages]="store.chatMessages()"
+      [myPlayerId]="state.myPlayerId"
+      [open]="chatOpen()"
+      (closePanel)="chatOpen.set(false)"
+      (sendMessage)="sendChat($event)"
+    />
+  </div>
+}

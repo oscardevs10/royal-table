@@ -11,6 +11,10 @@
   flex-shrink: 0;
 }
 
+.card.no-anim {
+  animation: none;
+}
+
 .card.sm {
   --w: 30px;
   --h: 42px;

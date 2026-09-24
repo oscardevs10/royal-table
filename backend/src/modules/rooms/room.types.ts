@@ -1,8 +1,8 @@
 import { GameEngine } from '../poker/game-engine';
-import { ConquianEngine } from '../conquian/conquian-engine';
+import { BlackjackEngine } from '../blackjack/blackjack-engine';
 import { LobbyPlayer } from '../players/player.types';
 
-export type GameMode = 'HOLDEM' | 'CONQUIAN';
+export type GameMode = 'HOLDEM' | 'BLACKJACK';
 
 export interface HoldemConfig {
   gameMode: 'HOLDEM';
@@ -12,14 +12,18 @@ export interface HoldemConfig {
   bigBlind: number;
 }
 
-export interface ConquianConfig {
-  gameMode: 'CONQUIAN';
+export interface BlackjackConfig {
+  gameMode: 'BLACKJACK';
+  /** 1 = a private table against the dealer; 2-7 = a shared table others join with the room code. */
   maxPlayers: number;
   startingStack: number;
-  ante: number;
+  minBet: number;
+  maxBet: number;
+  /** Number of 52-card decks in the shoe. */
+  deckCount: number;
 }
 
-export type RoomConfig = HoldemConfig | ConquianConfig;
+export type RoomConfig = HoldemConfig | BlackjackConfig;
 
 export type RoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
 
@@ -29,6 +33,6 @@ export interface Room {
   config: RoomConfig;
   status: RoomStatus;
   players: LobbyPlayer[];
-  engine: GameEngine | ConquianEngine | null;
+  engine: GameEngine | BlackjackEngine | null;
   createdAt: number;
 }

@@ -5,13 +5,12 @@ import { SessionService } from '../../core/services/session.service';
 import { LobbyComponent } from '../lobby/lobby.component';
 import { TableComponent } from '../table/table.component';
 import { ShowdownOverlayComponent } from '../table/components/showdown-overlay/showdown-overlay.component';
-import { ConquianTableComponent } from '../conquian-table/conquian-table.component';
-import { ConquianHandResultOverlayComponent } from '../conquian-table/components/conquian-hand-result-overlay/conquian-hand-result-overlay.component';
+import { BlackjackTableComponent } from '../blackjack-table/blackjack-table.component';
 
 @Component({
   selector: 'app-room-page',
   standalone: true,
-  imports: [LobbyComponent, TableComponent, ShowdownOverlayComponent, ConquianTableComponent, ConquianHandResultOverlayComponent],
+  imports: [LobbyComponent, TableComponent, ShowdownOverlayComponent, BlackjackTableComponent],
   templateUrl: './room-page.component.html',
   styleUrl: './room-page.component.scss',
 })
@@ -56,15 +55,9 @@ export class RoomPageComponent implements OnInit {
     this.store.dismissShowdown();
   }
 
-  dismissConquianHandResult(): void {
-    this.store.dismissConquianHandResult();
-  }
-
   get overallWinnerName(): string | null {
     const pokerState = this.store.gameState();
     if (pokerState) return pokerState.players.find((p) => p.status !== 'OUT')?.name ?? null;
-    const conquianState = this.store.conquianState();
-    if (conquianState) return conquianState.players.find((p) => p.status !== 'OUT')?.name ?? null;
     return null;
   }
 }

@@ -94,7 +94,7 @@ export interface RoomPlayerDTO {
   isBot: boolean;
 }
 
-export type GameMode = 'HOLDEM' | 'CONQUIAN';
+export type GameMode = 'HOLDEM' | 'BLACKJACK';
 
 export interface RoomStateDTO {
   roomId: string;
@@ -104,7 +104,9 @@ export interface RoomStateDTO {
   startingStack: number;
   smallBlind?: number;
   bigBlind?: number;
-  ante?: number;
+  minBet?: number;
+  maxBet?: number;
+  deckCount?: number;
   status: 'WAITING' | 'PLAYING' | 'FINISHED';
   players: RoomPlayerDTO[];
 }
@@ -137,65 +139,93 @@ export interface CreateRoomPayload {
   startingStack: number;
   smallBlind?: number;
   bigBlind?: number;
-  ante?: number;
+  minBet?: number;
+  maxBet?: number;
+  deckCount?: number;
 }
 
-// --- Conquian ---
+// --- Blackjack ---
 
-export type MeldType = 'SET' | 'RUN';
-export type ConquianPlayerStatus = 'ACTIVE' | 'OUT';
-export type TurnPhase = 'DRAW' | 'ACT';
-export type DrawSource = 'STOCK' | 'DISCARD';
+export type BlackjackPhase = 'BETTING' | 'PLAYER_TURNS' | 'DEALER_TURN' | 'ROUND_OVER';
+export type BlackjackAction = 'HIT' | 'STAND' | 'DOUBLE' | 'SPLIT';
+export type BlackjackHandStatus = 'PLAYING' | 'STOOD' | 'BUST' | 'BLACKJACK';
+export type BlackjackHandOutcome = 'BLACKJACK' | 'WIN' | 'PUSH' | 'LOSE';
 
-export interface ConquianMeldDTO {
-  id: string;
-  type: MeldType;
-  cards: Card[];
-  laidByPlayerId: string;
-}
-
-export interface ConquianPlayerPublicDTO {
+export interface BlackjackPlayerPublicDTO {
   id: string;
   name: string;
   seatIndex: number;
   chips: number;
-  status: ConquianPlayerStatus;
+  status: 'ACTIVE' | 'OUT';
   connected: boolean;
-  isBot: boolean;
   isHost: boolean;
-  handCount: number;
-  isCurrentTurn: boolean;
+  pendingBet: number;
 }
 
-export interface ConquianAvailableActions {
-  canDrawStock: boolean;
-  canDrawDiscard: boolean;
-  canDiscard: boolean;
+export interface BlackjackHandDTO {
+  id: string;
+  playerId: string;
+  playerName: string;
+  seatIndex: number;
+  cards: Card[];
+  total: number;
+  soft: boolean;
+  bet: number;
+  doubled: boolean;
+  fromSplit: boolean;
+  status: BlackjackHandStatus;
+  outcome: BlackjackHandOutcome | null;
+  payout: number;
+  isActive: boolean;
 }
 
-export interface ConquianStateDTO {
+export interface BlackjackDealerDTO {
+  cards: Card[];
+  hiddenCardCount: number;
+  total: number | null;
+  soft: boolean;
+  isBlackjack: boolean;
+}
+
+export interface BlackjackShoeDTO {
+  deckCount: number;
+  totalCards: number;
+  remaining: number;
+  cutCardAt: number;
+  justReshuffled: boolean;
+}
+
+export interface BlackjackPlayerRoundResult {
+  playerId: string;
+  playerName: string;
+  totalBet: number;
+  totalPayout: number;
+  net: number;
+}
+
+export interface BlackjackRoundResult {
+  roundNumber: number;
+  dealerTotal: number;
+  dealerBlackjack: boolean;
+  dealerBust: boolean;
+  players: BlackjackPlayerRoundResult[];
+}
+
+export interface BlackjackStateDTO {
   roomId: string;
   roomCode: string;
-  handNumber: number;
-  players: ConquianPlayerPublicDTO[];
-  dealerPosition: number;
-  currentPlayerPosition: number;
-  stockCount: number;
-  discardTopCard: Card | null;
-  discardCount: number;
-  melds: ConquianMeldDTO[];
-  ante: number;
-  pot: number;
-  turnPhase: TurnPhase;
-  handInProgress: boolean;
+  roundNumber: number;
+  phase: BlackjackPhase;
+  players: BlackjackPlayerPublicDTO[];
+  hands: BlackjackHandDTO[];
+  activeHandId: string | null;
+  dealer: BlackjackDealerDTO;
+  minBet: number;
+  maxBet: number;
+  shoe: BlackjackShoeDTO;
+  lastRoundResult: BlackjackRoundResult | null;
   myPlayerId: string;
-  myHand: Card[];
-  myAvailableActions: ConquianAvailableActions;
-}
-
-export interface ConquianHandResultDTO {
-  winnerId: string | null;
-  winnerName: string | null;
-  potWon: number;
-  isPush: boolean;
+  myAvailableActions: BlackjackAction[];
+  canPlaceBet: boolean;
+  canForceDeal: boolean;
 }

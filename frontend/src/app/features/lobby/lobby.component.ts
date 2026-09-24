@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { GameStoreService } from '../../core/services/game-store.service';
 import { SessionService } from '../../core/services/session.service';
+import { GameMode } from '../../core/models/game.models';
 
 @Component({
   selector: 'app-lobby',
@@ -52,6 +53,11 @@ export class LobbyComponent {
   leave(): void {
     this.store.leaveRoom();
     this.router.navigate(['/']);
+  }
+
+  /** Blackjack is played against the dealer, so the host alone can open the table. */
+  minPlayersToStart(mode: GameMode): number {
+    return mode === 'BLACKJACK' ? 1 : 2;
   }
 
   initials(name: string): string {

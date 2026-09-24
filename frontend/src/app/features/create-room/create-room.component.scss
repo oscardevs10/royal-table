@@ -59,6 +59,14 @@
   transition: all 0.15s ease;
 }
 
+.mode-btn small {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
 .mode-btn.active {
   border-color: var(--gold);
   color: var(--gold-bright);

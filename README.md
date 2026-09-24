@@ -1,6 +1,6 @@
 # Royal Table 🂡
 
-Casino multijugador online, en tiempo real, con fichas 100% virtuales (sin dinero real). Incluye dos juegos: **Texas Hold'em** y **Conquián**.
+Casino multijugador online, en tiempo real, con fichas 100% virtuales (sin dinero real). Incluye dos juegos: **Texas Hold'em** y **Blackjack**.
 
 - **Frontend**: Angular 19 + TypeScript + SCSS + Signals
 - **Backend**: Node.js + TypeScript + Express + Socket.IO
@@ -12,15 +12,22 @@ También puedes **jugar solo**: en la lobby, el anfitrión puede pulsar **+ Agre
 
 Durante la mano, un panel bajo la mesa muestra **tu jugada actual** (ej. "Par de Reyes") y, si lo expandes, la **probabilidad de terminar en cada categoría de mano** (Par, Color, Escalera...), calculada en el servidor sobre las cartas que aún no salieron (enumeración exacta en flop/turn, simulación tipo Monte Carlo antes del flop). Las cartas también se reparten con una animación escalonada por asiento, siguiendo el orden real de reparto.
 
-### Conquián
+### Blackjack
 
-El otro modo de juego es **Conquián** (el ancestro mexicano del Rummy/Gin Rummy). El juego clásico es estrictamente para 2 jugadores; aquí se adaptó para **2-4 jugadores** usando la convención estándar de Rummy multijugador (menos cartas por jugador cuantos más juegan: 10 con 2, 7 con 3, 6 con 4).
+El otro modo de juego es **Blackjack**, donde cada jugador juega contra la casa (el dealer lo controla el servidor). Al crear la partida eliges el tipo de mesa:
 
-Reglas de esta versión:
-- En tu turno: robas del mazo o del descarte, puedes formar combinaciones (tríos/pókers del mismo valor, o escaleras de 3+ del mismo palo) o agregar cartas a combinaciones **ya bajadas por cualquier jugador** (las combinaciones son compartidas, como en el Conquián real), y terminas descartando una carta.
-- Cada mano se juega por una **apuesta fija (ante)** que todos ponen al bote; el primero en quedarse sin cartas en mano se lo lleva.
-- Si el mazo se agota antes de que alguien se plante, la mano se declara empatada y se devuelve la apuesta a todos.
-- Por ahora Conquián es **solo multijugador humano** (sin bots) - el botón de agregar bots no aparece en ese modo.
+- **Solo vs Dealer**: una mesa privada de un asiento. Te sientas directamente, sin pasar por la lobby.
+- **Mesa multijugador**: de 2 a 7 asientos (como una mesa real). Compartes el código y cada quien juega sus manos contra el dealer. A diferencia del póker, **se puede entrar a una mesa ya empezada**: quien llega con el código se sienta y apuesta desde la siguiente ronda, y quien sale libera su asiento.
+
+Reglas de esta versión (reglas estándar de casino en EE. UU.):
+- Cada ronda empieza con las apuestas (entre la mínima y la máxima de la mesa). Se reparte en cuanto todos los jugadores conectados apostaron; el anfitrión puede **repartir ya** sin esperar a quien no apueste.
+- Blackjack natural paga **3 a 2**; el dealer **revisa si tiene blackjack** con un As o una figura boca arriba (si lo tiene, la ronda termina antes de que nadie doble o divida) y **se planta en todos los 17**, incluido el 17 suave.
+- Acciones: **Pedir**, **Plantarse**, **Doblar** (con las dos primeras cartas, también después de dividir) y **Dividir** (cualquier par del mismo valor, hasta 4 manos; los Ases divididos reciben una sola carta y un 21 en mano dividida paga 1 a 1).
+- El dealer juega carta por carta con una pausa entre cada una, y los resultados quedan en la mesa unos segundos antes de abrir la siguiente ronda.
+- Si un jugador se desconecta en su turno, se le da un margen de 15 s (por si solo recargó la página) y después se planta su mano automáticamente.
+- Quien ya no puede cubrir la apuesta mínima queda fuera; la partida termina cuando nadie en la mesa puede apostar.
+
+**Longitud de la baraja**: una baraja de 52 cartas no alcanza para una mesa llena (cada ronda usa ~3 cartas por mano más las del dealer, y con divisiones una mesa de 7 puede gastar más de 40 cartas en una sola ronda). Por eso se juega con un **zapato de varias barajas**: el mínimo depende del número de asientos (1 baraja hasta 2 asientos, 2 hasta 4, 4 para 5-7) y el formulario propone 2, 4 o 6 según la mesa. El zapato se vuelve a barajar **entre rondas** al salir la carta de corte (75% repartido), y si en una ronda extrema se agotara, se rellena con las cartas del descarte (nunca con cartas que siguen en la mesa). La mesa muestra cuántas cartas quedan y dónde está la carta de corte.
 
 ---
 
@@ -97,7 +104,7 @@ npm run dev                          # http://localhost:3001
 Otros comandos útiles:
 
 ```bash
-npm test              # 40+ tests unitarios + integración (deck, evaluador de manos, pots, turnos, sockets)
+npm test              # 90+ tests unitarios + integración (póker, blackjack, zapato, sockets)
 npm run build          # compila a dist/
 npm start               # ejecuta el build compilado
 npx prisma studio        # explorador visual de la base de datos
@@ -129,6 +136,11 @@ Para jugar entre distintas redes (no LAN), necesitas desplegar el backend y el f
 2. En la lobby, pulsa **+ Agregar Bot** una o más veces (puedes quitarlos con el botón `×` antes de empezar).
 3. Cuando haya al menos 2 jugadores (tú + 1 bot), pulsa **Comenzar partida**. Los bots actúan solos, sin que tengas que hacer nada por ellos.
 
+### Jugar Blackjack
+
+- **Solo**: **Crear partida** → **Blackjack** → **Solo vs Dealer** → **Sentarse a jugar**. Entras directo a la mesa.
+- **Con amigos**: **Crear partida** → **Blackjack** → **Mesa multijugador**, elige asientos y barajas, y comparte el código. Puedes pulsar **Abrir la mesa** aunque estés solo: tus amigos pueden unirse con el código en cualquier momento y entran en la siguiente ronda.
+
 ## 8. Tests
 
 ```bash
@@ -137,6 +149,8 @@ npm test
 ```
 
 Cubre: baraja y shuffle, evaluador de manos (las 10 categorías, empates, wheel straight), pot manager (side pots con múltiples all-in), gestión de turnos, fold, all-in, eliminación de jugadores, reconexión, y partidas completas de 2, 3 y 6 jugadores. También incluye tests de integración que levantan un servidor real y simulan dos clientes de Socket.IO jugando una mano completa, verificando que ningún jugador reciba las cartas privadas de otro.
+
+Para Blackjack: valor de mano (Ases suaves/duros, 17 suave), zapato multi-baraja (composición, carta de corte, relleno desde el descarte), pagos 3:2, revisión del dealer, doblar, dividir (incluidos Ases y el límite de 4 manos), turnos en mesa multijugador, entrar/salir a mitad de partida, y una simulación de 300 rondas que comprueba que nunca se pierde ni se duplica una carta. Los tests de integración juegan una ronda solo contra el dealer y una mesa donde un amigo entra con el código, y verifican que la carta oculta del dealer nunca viaja al cliente antes de revelarse.
 
 ## 9. Despliegue (siguientes pasos)
 
@@ -154,5 +168,5 @@ Esta primera versión está pensada para desarrollo local / LAN. Para producció
 - **Sonidos**: se generan sintéticamente con la Web Audio API (sin archivos de audio placeholder) para que el feedback sonoro sea real desde el primer día. Se pueden reemplazar por samples reales en `AudioService` cuando existan assets definitivos.
 - **Sin límite de tiempo por turno**: no hay temporizador que fuerce fold/check automático si un jugador no actúa. Sería una mejora natural para partidas competitivas.
 - **IA de los bots**: es una heurística simple (fuerza de mano estimada + algo de aleatoriedad para no ser 100% predecible), no un solver de GTO. Juega de forma razonable pero no es un adversario "difícil" a propósito - es pensada para practicar/completar mesas, no para desafiar a un jugador experto.
-- **Conquián sin bots**: la IA de bots existe solo para Texas Hold'em por ahora; agregarla a Conquián es una extensión natural (heurística: priorizar robar del descarte si completa una combinación, descartar la carta menos útil).
-- **Conquián - robar del descarte**: se puede tomar la carta superior del descarte libremente, sin forzar que se use esa misma carta en una combinación ese turno (simplificación respecto a la regla estricta de algunas variantes de Rummy).
+- **Blackjack sin seguro ni rendición**: no se ofrece *insurance* ni *surrender*. El dealer sí revisa su blackjack antes de que se juegue, así que nadie pierde dobles o divisiones contra un blackjack del dealer.
+- **Blackjack sin bots**: no hacen falta para jugar solo (el rival es el dealer), así que el botón de agregar bots no aparece en ese modo.

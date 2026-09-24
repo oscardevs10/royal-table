@@ -1,0 +1,44 @@
+:host {
+  display: block;
+  perspective: 700px;
+  flex-shrink: 0;
+  will-change: transform;
+}
+
+.flipper {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.3, 1.3, 0.5, 1);
+
+  &.md {
+    width: 42px;
+    height: 58px;
+  }
+  &.lg {
+    width: 58px;
+    height: 80px;
+  }
+
+  // Face up = turned over. A card created face up starts here (no transition on first paint);
+  // only the hole card goes from face down to face up while on the table, so only it flips.
+  &.revealed {
+    transform: rotateY(180deg);
+  }
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.front {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flipper {
+    transition: none;
+  }
+}

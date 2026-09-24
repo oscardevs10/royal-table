@@ -2,7 +2,13 @@
   <div class="form-card glass-panel">
     <a routerLink="/" class="back-link">← Volver</a>
     <h2 class="title">Crear partida</h2>
-    <p class="subtitle">Configura tu mesa y comparte el código con tus amigos.</p>
+    <p class="subtitle">
+      @if (gameMode === 'BLACKJACK' && blackjackTable === 'SOLO') {
+        Siéntate a solas contra el dealer.
+      } @else {
+        Configura tu mesa y comparte el código con tus amigos.
+      }
+    </p>
 
     <form (ngSubmit)="submit()" #form="ngForm">
       <div class="field">
@@ -11,11 +17,27 @@
           <button type="button" class="mode-btn" [class.active]="gameMode === 'HOLDEM'" (click)="selectMode('HOLDEM')">
             🂡 Texas Hold'em
           </button>
-          <button type="button" class="mode-btn" [class.active]="gameMode === 'CONQUIAN'" (click)="selectMode('CONQUIAN')">
-            🃏 Conquián
+          <button type="button" class="mode-btn" [class.active]="gameMode === 'BLACKJACK'" (click)="selectMode('BLACKJACK')">
+            🃏 Blackjack
           </button>
         </div>
       </div>
+
+      @if (gameMode === 'BLACKJACK') {
+        <div class="field">
+          <span class="field-label">Tipo de mesa</span>
+          <div class="mode-row">
+            <button type="button" class="mode-btn" [class.active]="blackjackTable === 'SOLO'" (click)="selectBlackjackTable('SOLO')">
+              <span>Solo vs Dealer</span>
+              <small>Juegas tú contra la casa</small>
+            </button>
+            <button type="button" class="mode-btn" [class.active]="blackjackTable === 'MULTI'" (click)="selectBlackjackTable('MULTI')">
+              <span>Mesa multijugador</span>
+              <small>Invita con un código</small>
+            </button>
+          </div>
+        </div>
+      }
 
       <div class="field">
         <label class="field-label" for="name">Nombre del jugador</label>
@@ -31,14 +53,25 @@
         />
       </div>
 
-      <div class="field">
-        <label class="field-label" for="maxPlayers">Número máximo de jugadores</label>
-        <select id="maxPlayers" class="select-input" [(ngModel)]="maxPlayers" name="maxPlayers">
-          @for (n of maxPlayerOptions; track n) {
-            <option [value]="n">{{ n }} jugadores</option>
-          }
-        </select>
-      </div>
+      @if (gameMode === 'HOLDEM') {
+        <div class="field">
+          <label class="field-label" for="maxPlayers">Número máximo de jugadores</label>
+          <select id="maxPlayers" class="select-input" [(ngModel)]="maxPlayers" name="maxPlayers">
+            @for (n of maxPlayerOptions; track n) {
+              <option [value]="n">{{ n }} jugadores</option>
+            }
+          </select>
+        </div>
+      } @else if (blackjackTable === 'MULTI') {
+        <div class="field">
+          <label class="field-label" for="seats">Asientos en la mesa</label>
+          <select id="seats" class="select-input" [(ngModel)]="maxPlayers" name="seats" (ngModelChange)="onSeatsChange()">
+            @for (n of maxPlayerOptions; track n) {
+              <option [ngValue]="n">{{ n }} jugadores</option>
+            }
+          </select>
+        </div>
+      }
 
       <div class="field">
         <span class="field-label">Stack inicial</span>
@@ -68,11 +101,30 @@
           </div>
         </div>
       } @else {
-        <div class="field">
-          <label class="field-label" for="ante">Apuesta por mano (ante)</label>
-          <input id="ante" class="text-input" type="number" [(ngModel)]="ante" name="ante" min="1" required />
+        <div class="blinds-row">
+          <div class="field">
+            <label class="field-label" for="minBet">Apuesta mínima</label>
+            <input id="minBet" class="text-input" type="number" [(ngModel)]="minBet" name="minBet" min="1" required />
+          </div>
+          <div class="field">
+            <label class="field-label" for="maxBet">Apuesta máxima</label>
+            <input id="maxBet" class="text-input" type="number" [(ngModel)]="maxBet" name="maxBet" min="1" required />
+          </div>
         </div>
-        <p class="mode-note">Cada jugador aporta esta cantidad al bote en cada mano. Quien se planta primero se lo lleva.</p>
+
+        <div class="field">
+          <label class="field-label" for="decks">Barajas en el zapato</label>
+          <select id="decks" class="select-input" [(ngModel)]="deckCount" name="deckCount">
+            @for (n of deckOptions; track n) {
+              <option [ngValue]="n">{{ n }} {{ n === 1 ? 'baraja' : 'barajas' }} · {{ n * cardsPerDeck }} cartas</option>
+            }
+          </select>
+        </div>
+        <p class="mode-note">
+          Una sola baraja tiene 52 cartas y no alcanza para una mesa llena: cada ronda usa ~3 cartas por mano más las del dealer.
+          Por eso las mesas más grandes exigen más barajas. El zapato se vuelve a barajar entre rondas al salir la carta de corte
+          (75% repartido). Blackjack paga 3 a 2 · el dealer se planta en 17.
+        </p>
       }
 
       @if (formError()) {
@@ -80,7 +132,13 @@
       }
 
       <button type="submit" class="btn btn-gold submit-btn" [disabled]="submitting() || !form.valid">
-        {{ submitting() ? 'Creando...' : 'Crear sala' }}
+        @if (submitting()) {
+          Creando...
+        } @else if (gameMode === 'BLACKJACK' && blackjackTable === 'SOLO') {
+          Sentarse a jugar
+        } @else {
+          Crear sala
+        }
       </button>
     </form>
   </div>

@@ -67,12 +67,14 @@ export interface RoomPlayerDTO {
 export interface RoomStateDTO {
   roomId: string;
   code: string;
-  gameMode: 'HOLDEM' | 'CONQUIAN';
+  gameMode: 'HOLDEM' | 'BLACKJACK';
   maxPlayers: number;
   startingStack: number;
   smallBlind?: number;
   bigBlind?: number;
-  ante?: number;
+  minBet?: number;
+  maxBet?: number;
+  deckCount?: number;
   status: 'WAITING' | 'PLAYING' | 'FINISHED';
   players: RoomPlayerDTO[];
 }

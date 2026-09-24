@@ -26,6 +26,8 @@ export class PlayingCardComponent {
   @Input() faceDown = false;
   @Input() size: 'sm' | 'md' | 'lg' = 'md';
   @Input() dealDelayMs = 0;
+  /** Set to false when a parent animates the card itself (e.g. flying it from the blackjack shoe). */
+  @Input() animated = true;
 
   readonly displayCard = computed(() => this.cardSignal());
 

@@ -23,7 +23,9 @@ class PersistenceService {
           startingStack: config.startingStack,
           smallBlind: config.gameMode === 'HOLDEM' ? config.smallBlind : null,
           bigBlind: config.gameMode === 'HOLDEM' ? config.bigBlind : null,
-          ante: config.gameMode === 'CONQUIAN' ? config.ante : null,
+          minBet: config.gameMode === 'BLACKJACK' ? config.minBet : null,
+          maxBet: config.gameMode === 'BLACKJACK' ? config.maxBet : null,
+          deckCount: config.gameMode === 'BLACKJACK' ? config.deckCount : null,
         },
       });
     } catch (err) {
@@ -92,6 +94,17 @@ class PersistenceService {
       });
     } catch (err) {
       console.error('[persistence] endHand failed', err);
+    }
+  }
+
+  /** Blackjack rounds are recorded in a single write once settled (there's no street-by-street action log to attach). */
+  async recordCompletedHand(roomId: string, handNumber: number, potTotal: number, winnerSummary: string): Promise<void> {
+    const gameId = this.gameIdByRoom.get(roomId);
+    if (!gameId) return;
+    try {
+      await prisma.hand.create({ data: { gameId, handNumber, potTotal, winnerSummary, endedAt: new Date() } });
+    } catch (err) {
+      console.error('[persistence] recordCompletedHand failed', err);
     }
   }
 

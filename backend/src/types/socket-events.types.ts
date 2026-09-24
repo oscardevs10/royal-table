@@ -1,10 +1,9 @@
 import { GameStateDTO, RoomStateDTO } from './dto.types';
 import { ActionType } from './game.types';
 import { ShowdownResult } from './game.types';
-import { Card } from './card.types';
-import { ConquianStateDTO, ConquianHandResultDTO } from './conquian-dto.types';
+import { BlackjackStateDTO } from './blackjack-dto.types';
 import { GameMode } from '../modules/rooms/room.types';
-import { DrawSource } from '../modules/conquian/conquian.types';
+import { BlackjackAction } from '../modules/blackjack/blackjack.types';
 
 /** Events the client is allowed to emit. The server validates every payload. */
 export interface ClientToServerEvents {
@@ -16,7 +15,9 @@ export interface ClientToServerEvents {
       startingStack: number;
       smallBlind?: number;
       bigBlind?: number;
-      ante?: number;
+      minBet?: number;
+      maxBet?: number;
+      deckCount?: number;
     },
     callback: (res: { ok: true; roomCode: string; sessionToken: string; playerId: string } | { ok: false; error: string }) => void
   ) => void;
@@ -53,18 +54,17 @@ export interface ClientToServerEvents {
 
   'chat:message': (payload: { sessionToken: string; text: string }) => void;
 
-  'conquian:draw': (
-    payload: { sessionToken: string; source: DrawSource },
+  /** Sets the bet for the upcoming round; 0 withdraws it. */
+  'blackjack:bet': (
+    payload: { sessionToken: string; amount: number },
     callback: (res: { ok: true } | { ok: false; error: string }) => void
   ) => void;
 
-  'conquian:meld': (
-    payload: { sessionToken: string; cards: Card[]; targetMeldId?: string },
-    callback: (res: { ok: true } | { ok: false; error: string }) => void
-  ) => void;
+  /** Host only: deal now without waiting for players who haven't bet. */
+  'blackjack:deal': (payload: { sessionToken: string }, callback: (res: { ok: true } | { ok: false; error: string }) => void) => void;
 
-  'conquian:discard': (
-    payload: { sessionToken: string; card: Card },
+  'blackjack:action': (
+    payload: { sessionToken: string; action: BlackjackAction },
     callback: (res: { ok: true } | { ok: false; error: string }) => void
   ) => void;
 }
@@ -78,8 +78,8 @@ export interface ServerToClientEvents {
   'player:disconnected': (payload: { playerId: string; name: string }) => void;
   'player:reconnected': (payload: { playerId: string; name: string }) => void;
   'player:eliminated': (payload: { playerId: string; name: string }) => void;
+  'player:left': (payload: { playerId: string; name: string }) => void;
   'chat:message': (payload: { playerId: string; playerName: string; text: string; timestamp: number }) => void;
   'game:player-action': (payload: { playerId: string; playerName: string; type: ActionType; amount?: number }) => void;
-  'conquian:state': (state: ConquianStateDTO) => void;
-  'conquian:hand-result': (result: ConquianHandResultDTO) => void;
+  'blackjack:state': (state: BlackjackStateDTO) => void;
 }

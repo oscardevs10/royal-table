@@ -4,7 +4,7 @@
       <button class="leave-btn" (click)="leave()" title="Salir">←</button>
 
       <div class="room-code-block">
-        <span class="field-label">{{ room.gameMode === 'CONQUIAN' ? 'Conquián' : "Texas Hold'em" }} · Código de sala</span>
+        <span class="field-label">{{ room.gameMode === 'BLACKJACK' ? 'Blackjack' : "Texas Hold'em" }} · Código de sala</span>
         <div class="room-code">{{ room.code }}</div>
         <button class="btn btn-ghost copy-btn" (click)="copyInvite()">
           {{ copied() ? '¡Copiado!' : 'Copiar invitación' }}
@@ -61,11 +61,15 @@
       @if (room.gameMode === 'HOLDEM' && store.isHost() && room.players.length === 1) {
         <p class="solo-hint">¿Jugando solo? Agrega al menos un bot para poder comenzar.</p>
       }
+      @if (room.gameMode === 'BLACKJACK') {
+        <p class="solo-hint">Todos juegan contra el dealer. Puedes empezar ya: quien llegue con el código se sienta en la siguiente ronda.</p>
+      }
 
       <div class="config-summary">
         <div class="config-item"><span>Stack inicial</span><strong>{{ room.startingStack | number }}</strong></div>
-        @if (room.gameMode === 'CONQUIAN') {
-          <div class="config-item"><span>Apuesta (ante)</span><strong>{{ room.ante | number }}</strong></div>
+        @if (room.gameMode === 'BLACKJACK') {
+          <div class="config-item"><span>Apuesta</span><strong>{{ room.minBet | number }} - {{ room.maxBet | number }}</strong></div>
+          <div class="config-item"><span>Zapato</span><strong>{{ room.deckCount }} {{ room.deckCount === 1 ? 'baraja' : 'barajas' }}</strong></div>
         } @else {
           <div class="config-item"><span>Small Blind</span><strong>{{ room.smallBlind | number }}</strong></div>
           <div class="config-item"><span>Big Blind</span><strong>{{ room.bigBlind | number }}</strong></div>
@@ -73,8 +77,16 @@
       </div>
 
       @if (store.isHost()) {
-        <button class="btn btn-gold start-btn" [disabled]="room.players.length < 2 || starting()" (click)="startGame()">
-          {{ starting() ? 'Iniciando...' : room.players.length < 2 ? 'Esperando jugadores...' : 'Comenzar partida' }}
+        <button class="btn btn-gold start-btn" [disabled]="room.players.length < minPlayersToStart(room.gameMode) || starting()" (click)="startGame()">
+          {{
+            starting()
+              ? 'Iniciando...'
+              : room.players.length < minPlayersToStart(room.gameMode)
+                ? 'Esperando jugadores...'
+                : room.gameMode === 'BLACKJACK'
+                  ? 'Abrir la mesa'
+                  : 'Comenzar partida'
+          }}
         </button>
       } @else {
         <div class="waiting-host">Esperando a que el anfitrión inicie la partida...</div>
