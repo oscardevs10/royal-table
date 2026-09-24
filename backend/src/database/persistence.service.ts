@@ -116,6 +116,15 @@ class PersistenceService {
     }
   }
 
+  /** Back to the starting stack and no longer eliminated, for a "play again" in the same room. */
+  async resetPlayer(playerId: string, chips: number): Promise<void> {
+    try {
+      await prisma.player.update({ where: { id: playerId }, data: { chips, eliminated: false } });
+    } catch (err) {
+      console.error('[persistence] resetPlayer failed', err);
+    }
+  }
+
   async markPlayerEliminated(playerId: string): Promise<void> {
     try {
       await prisma.player.update({ where: { id: playerId }, data: { eliminated: true } });

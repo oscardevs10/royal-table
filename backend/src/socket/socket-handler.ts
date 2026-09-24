@@ -411,6 +411,16 @@ export function registerSocketHandlers(io: AppServer): void {
       broadcastRoomState(io, result.data);
     });
 
+    socket.on('room:restart', async (payload, callback) => {
+      const result = await roomService.restartRoom(payload.sessionToken);
+      if (!result.ok || !result.data) {
+        callback({ ok: false, error: result.error ?? 'Could not restart the game' });
+        return;
+      }
+      callback({ ok: true });
+      broadcastRoomState(io, result.data);
+    });
+
     socket.on('game:start', async (payload, callback) => {
       const result = await roomService.startGame(payload.sessionToken);
       if (!result.ok || !result.data) {

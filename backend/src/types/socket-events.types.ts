@@ -43,6 +43,9 @@ export interface ClientToServerEvents {
     callback: (res: { ok: true } | { ok: false; error: string }) => void
   ) => void;
 
+  /** Host only, once the game is over: back to the lobby with the same room code and players. */
+  'room:restart': (payload: { sessionToken: string }, callback: (res: { ok: true } | { ok: false; error: string }) => void) => void;
+
   'game:start': (payload: { sessionToken: string }, callback: (res: { ok: true } | { ok: false; error: string }) => void) => void;
 
   'game:action': (

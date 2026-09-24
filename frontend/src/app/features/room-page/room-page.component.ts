@@ -17,6 +17,7 @@ import { BlackjackTableComponent } from '../blackjack-table/blackjack-table.comp
 export class RoomPageComponent implements OnInit {
   readonly connecting = signal(true);
   readonly connectError = signal<string | null>(null);
+  readonly restarting = signal(false);
 
   constructor(private route: ActivatedRoute, private router: Router, readonly store: GameStoreService, private session: SessionService) {}
 
@@ -45,6 +46,22 @@ export class RoomPageComponent implements OnInit {
   backToLanding(): void {
     this.store.leaveRoom();
     this.router.navigate(['/']);
+  }
+
+  /**
+   * Same room, same code, same players, fresh stacks. A solo blackjack table has nobody to
+   * wait for, so it goes straight back to the dealer; any other table returns to the lobby
+   * so the host can see who's still there (and invite or add bots) before starting.
+   */
+  async playAgain(): Promise<void> {
+    if (this.restarting()) return;
+    this.restarting.set(true);
+    const room = this.store.roomState();
+    const res = await this.store.restartRoom();
+    if (res.ok && room?.gameMode === 'BLACKJACK' && room.maxPlayers === 1) {
+      await this.store.startGame();
+    }
+    this.restarting.set(false);
   }
 
   nextHand(): void {
